@@ -1,8 +1,7 @@
 -- Seed: Sogrape FY25 Balanced Scorecard, converted from the source workbook.
 --
--- Run this AFTER 0001_init.sql, once. It is idempotent: re-running it changes
--- nothing because every insert is keyed on a fixed uuid and does nothing on
--- conflict. Delete the project in the app if you want a clean slate.
+-- Run this AFTER 0001_init.sql, once. Idempotent: every row is keyed on a fixed
+-- uuid and does nothing on conflict, so re-running changes nothing.
 --
 -- Weights are evenly split -- the workbook specifies none -- and affect the
 -- numeric scores only, never a RAG colour. Initiative risk is derived from the
@@ -11,23 +10,23 @@
 begin;
 
 insert into public.projects (id, company_name, industry, fiscal_year, business_unit, vision, mission, strategic_themes, prepared_by, prepared_date, perspective_weights, performance_thresholds)
-values ('af56d9a2-6f5b-437c-a003-c25fbff0fc3b', 'Sogrape', 'Wine & Beverages', 'FY25', 'Group', 'A global reference in premium wine, rooted in Portuguese heritage.', 'Grow international presence through premiumisation, export diversification and sustainable production.', 'Export & Asia-Pacific growth; Premiumisation; Digital transformation; Sustainability; Talent', 'Strategy Office', '2026-07-22', '{"financial": 25, "customer": 25, "internal": 25, "learning": 25}'::jsonb, '{"red_max": 70, "amber_max": 90}'::jsonb)
+values ('af56d9a2-6f5b-437c-a003-c25fbff0fc3b'::uuid, 'Sogrape', 'Wine & Beverages', 'FY25', 'Group', 'A global reference in premium wine, rooted in Portuguese heritage.', 'Grow international presence through premiumisation, export diversification and sustainable production.', 'Export & Asia-Pacific growth; Premiumisation; Digital transformation; Sustainability; Talent', 'Strategy Office', '2026-07-22', '{"financial": 25, "customer": 25, "internal": 25, "learning": 25}'::jsonb, '{"red_max": 70, "amber_max": 90}'::jsonb)
 on conflict (id) do nothing;
 
 
 insert into public.objectives (id, project_id, department_id, perspective_id, name, description, priority, owner, timeline, status, color, weight) values
-  ('204e4a40-989d-4a1f-9af2-6ea79a51a851'::uuid, 'af56d9a2-6f5b-437c-a003-c25fbff0fc3b'::uuid, null, 'financial'::uuid, 'Grow Revenue through Export & Asia-Pacific Market Expansion', '', 'High', '', 'FY25', 'On Track', '#721B29', 33.34),
-  ('78ad33d3-c12d-4e41-bfce-34f9b07a1dac'::uuid, 'af56d9a2-6f5b-437c-a003-c25fbff0fc3b'::uuid, null, 'financial'::uuid, 'Improve Profitability through Premiumisation & Cost Efficiency', '', 'High', '', 'FY25', 'On Track', '#721B29', 33.33),
-  ('9b3badc4-d4f1-438e-ba01-b7122dfea396'::uuid, 'af56d9a2-6f5b-437c-a003-c25fbff0fc3b'::uuid, null, 'financial'::uuid, 'Strengthen Capital Efficiency & Financial Resilience', '', 'High', '', 'FY25', 'On Track', '#721B29', 33.33),
-  ('b70c109b-63bc-4549-b1fd-c8d499ce1a98'::uuid, 'af56d9a2-6f5b-437c-a003-c25fbff0fc3b'::uuid, null, 'customer'::uuid, 'Strengthen Brand Equity & Market Penetration in Asia-Pacific', '', 'High', '', 'FY25', 'On Track', '#721B29', 33.34),
-  ('959f4306-6160-475d-b643-b8c673bed4a0'::uuid, 'af56d9a2-6f5b-437c-a003-c25fbff0fc3b'::uuid, null, 'customer'::uuid, 'Improve Trade Partner & Consumer Satisfaction', '', 'High', '', 'FY25', 'On Track', '#721B29', 33.33),
-  ('09168440-fa62-4bd5-b501-afe8273eb518'::uuid, 'af56d9a2-6f5b-437c-a003-c25fbff0fc3b'::uuid, null, 'customer'::uuid, 'Grow Wine Tourism & Global Brand Experience Reach', '', 'High', '', 'FY25', 'On Track', '#721B29', 33.33),
-  ('8fac358e-bead-4dbf-8270-6272b0ac799e'::uuid, 'af56d9a2-6f5b-437c-a003-c25fbff0fc3b'::uuid, null, 'internal'::uuid, 'Accelerate Digital & Organisational Transformation (STEP)', '', 'High', '', 'FY25', 'On Track', '#721B29', 33.34),
-  ('4ae0f98f-54e0-48dc-93e6-b8704160200c'::uuid, 'af56d9a2-6f5b-437c-a003-c25fbff0fc3b'::uuid, null, 'internal'::uuid, 'Optimise Supply Chain & Export Logistics for Asia', '', 'High', '', 'FY25', 'On Track', '#721B29', 33.33),
-  ('bb47e036-a52f-471e-b6c1-08bca8a206fb'::uuid, 'af56d9a2-6f5b-437c-a003-c25fbff0fc3b'::uuid, null, 'internal'::uuid, 'Strengthen Agricultural Resilience & Production Sustainability', '', 'High', '', 'FY25', 'On Track', '#721B29', 33.33),
-  ('d5151598-9da9-4cf1-aac2-2d38db500717'::uuid, 'af56d9a2-6f5b-437c-a003-c25fbff0fc3b'::uuid, null, 'learning'::uuid, 'Build Workforce Capability for Global/Asia Growth', '', 'High', '', 'FY25', 'On Track', '#721B29', 33.34),
-  ('16393f86-7623-4da0-8bde-c7ea5d97a232'::uuid, 'af56d9a2-6f5b-437c-a003-c25fbff0fc3b'::uuid, null, 'learning'::uuid, 'Strengthen Leadership Pipeline & Employee Engagement', '', 'High', '', 'FY25', 'On Track', '#721B29', 33.33),
-  ('fcb23b1c-99a4-4632-8f82-05537f7d5c36'::uuid, 'af56d9a2-6f5b-437c-a003-c25fbff0fc3b'::uuid, null, 'learning'::uuid, 'Foster Talent Attraction & Workforce Growth', '', 'High', '', 'FY25', 'On Track', '#721B29', 33.33)
+  ('204e4a40-989d-4a1f-9af2-6ea79a51a851'::uuid, 'af56d9a2-6f5b-437c-a003-c25fbff0fc3b'::uuid, null, 'financial', 'Grow Revenue through Export & Asia-Pacific Market Expansion', '', 'High', '', 'FY25', 'On Track', '#721B29', 33.34),
+  ('78ad33d3-c12d-4e41-bfce-34f9b07a1dac'::uuid, 'af56d9a2-6f5b-437c-a003-c25fbff0fc3b'::uuid, null, 'financial', 'Improve Profitability through Premiumisation & Cost Efficiency', '', 'High', '', 'FY25', 'On Track', '#721B29', 33.33),
+  ('9b3badc4-d4f1-438e-ba01-b7122dfea396'::uuid, 'af56d9a2-6f5b-437c-a003-c25fbff0fc3b'::uuid, null, 'financial', 'Strengthen Capital Efficiency & Financial Resilience', '', 'High', '', 'FY25', 'On Track', '#721B29', 33.33),
+  ('b70c109b-63bc-4549-b1fd-c8d499ce1a98'::uuid, 'af56d9a2-6f5b-437c-a003-c25fbff0fc3b'::uuid, null, 'customer', 'Strengthen Brand Equity & Market Penetration in Asia-Pacific', '', 'High', '', 'FY25', 'On Track', '#721B29', 33.34),
+  ('959f4306-6160-475d-b643-b8c673bed4a0'::uuid, 'af56d9a2-6f5b-437c-a003-c25fbff0fc3b'::uuid, null, 'customer', 'Improve Trade Partner & Consumer Satisfaction', '', 'High', '', 'FY25', 'On Track', '#721B29', 33.33),
+  ('09168440-fa62-4bd5-b501-afe8273eb518'::uuid, 'af56d9a2-6f5b-437c-a003-c25fbff0fc3b'::uuid, null, 'customer', 'Grow Wine Tourism & Global Brand Experience Reach', '', 'High', '', 'FY25', 'On Track', '#721B29', 33.33),
+  ('8fac358e-bead-4dbf-8270-6272b0ac799e'::uuid, 'af56d9a2-6f5b-437c-a003-c25fbff0fc3b'::uuid, null, 'internal', 'Accelerate Digital & Organisational Transformation (STEP)', '', 'High', '', 'FY25', 'On Track', '#721B29', 33.34),
+  ('4ae0f98f-54e0-48dc-93e6-b8704160200c'::uuid, 'af56d9a2-6f5b-437c-a003-c25fbff0fc3b'::uuid, null, 'internal', 'Optimise Supply Chain & Export Logistics for Asia', '', 'High', '', 'FY25', 'On Track', '#721B29', 33.33),
+  ('bb47e036-a52f-471e-b6c1-08bca8a206fb'::uuid, 'af56d9a2-6f5b-437c-a003-c25fbff0fc3b'::uuid, null, 'internal', 'Strengthen Agricultural Resilience & Production Sustainability', '', 'High', '', 'FY25', 'On Track', '#721B29', 33.33),
+  ('d5151598-9da9-4cf1-aac2-2d38db500717'::uuid, 'af56d9a2-6f5b-437c-a003-c25fbff0fc3b'::uuid, null, 'learning', 'Build Workforce Capability for Global/Asia Growth', '', 'High', '', 'FY25', 'On Track', '#721B29', 33.34),
+  ('16393f86-7623-4da0-8bde-c7ea5d97a232'::uuid, 'af56d9a2-6f5b-437c-a003-c25fbff0fc3b'::uuid, null, 'learning', 'Strengthen Leadership Pipeline & Employee Engagement', '', 'High', '', 'FY25', 'On Track', '#721B29', 33.33),
+  ('fcb23b1c-99a4-4632-8f82-05537f7d5c36'::uuid, 'af56d9a2-6f5b-437c-a003-c25fbff0fc3b'::uuid, null, 'learning', 'Foster Talent Attraction & Workforce Growth', '', 'High', '', 'FY25', 'On Track', '#721B29', 33.33)
 on conflict (id) do nothing;
 
 
