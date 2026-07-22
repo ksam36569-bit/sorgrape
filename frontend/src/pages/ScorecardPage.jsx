@@ -266,9 +266,49 @@ const ScorecardPage = () => {
   );
 };
 
+// Vision and mission sit at the head of the Scorecard tab only -- they frame the
+// objectives beneath them. Every other section (Dashboard, OKRs, Strategy Map,
+// ...) is a working view and does not repeat the header. Each row renders only
+// when the project actually has that text, so an empty field leaves no gap.
+const VisionMission = ({ project }) => {
+  const rows = [
+    ["Vision", project.vision],
+    ["Mission", project.mission],
+  ].filter(([, v]) => v && String(v).trim());
+
+  if (rows.length === 0) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35 }}
+      className="mb-6"
+      data-testid="scorecard-vision-mission"
+    >
+      <Card className="overflow-hidden border-border/70">
+        <div className="divide-y divide-border">
+          {rows.map(([label, value]) => (
+            <div key={label} className="grid grid-cols-1 sm:grid-cols-[132px_1fr]">
+              <div className="px-5 py-4 bg-muted/40 flex items-start">
+                <span className="text-[10px] uppercase tracking-[0.28em] text-muted-foreground">{label}</span>
+              </div>
+              <div className="px-5 py-4">
+                <p className="text-sm leading-relaxed text-foreground/90">{value}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
+    </motion.div>
+  );
+};
+
 const ScorecardSection = ({ project, filters, setFilters, objectivesFiltered, view, overall, totalPWeight, setObjDialog, setMeasureDialog, setImportOpen }) => {
   return (
     <>
+      <VisionMission project={project} />
+
       <FilterBar filters={filters} setFilters={setFilters} />
 
       {/* Perspective KPI cards */}
