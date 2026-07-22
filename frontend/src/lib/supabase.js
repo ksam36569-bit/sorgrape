@@ -14,7 +14,15 @@ export const isConfigured = Boolean(url && anonKey);
 // protects the data is Row Level Security — see the warning at the bottom of
 // supabase/migrations/0001_init.sql: the policies are currently wide open.
 export const supabase = isConfigured
-  ? createClient(url, anonKey, { auth: { persistSession: false } })
+  ? createClient(url, anonKey, {
+      auth: {
+        // Persist so a reload keeps the session, and refresh tokens before they
+        // expire so a long-lived dashboard does not silently start failing.
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+      },
+    })
   : null;
 
 export default supabase;
