@@ -112,6 +112,16 @@ export const perspectiveRating = (perspectiveId, objectives, measures, targets, 
   return worstRating(objs.map((o) => objectiveRating(o, measures, targets, thresholds)));
 };
 
+/** RAG status for the whole scorecard: the worst status among its perspectives. */
+export const overallRating = (project, perspectiveIds) => {
+  const ids = perspectiveIds || ["financial", "customer", "internal", "learning"];
+  return worstRating(
+    ids.map((id) =>
+      perspectiveRating(id, project.objectives, project.measures, project.targets, project.performance_thresholds)
+    )
+  );
+};
+
 /** Aggregate a measure across its targets — average of achievement % across periods (with targets) */
 export const measureAchievement = (measure, targets) => {
   const ms = targets.filter((t) => t.measure_id === measure.id);

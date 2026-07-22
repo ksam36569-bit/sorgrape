@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useScorecard } from "../context/ScorecardContext";
 import { PERSPECTIVES, PERSPECTIVE_MAP } from "../lib/constants";
 import {
-  overallScore, perspectiveScore, objectiveScore, measureAchievement, measureRating, fmtPct, rating,
+  overallScore, perspectiveScore, objectiveScore, measureAchievement, measureRating, fmtPct, rating, perspectiveRating, overallRating,
 } from "../lib/calculations";
 import { exportCSV, exportExcel, exportJSON, exportPDF, printReport, parseJSONFile } from "../lib/reports";
 import { api } from "../lib/api";
@@ -140,7 +140,7 @@ const ReportsView = () => {
           <div className="text-right">
             <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Overall</div>
             <div className="font-serif text-4xl tabular-nums">{fmtPct(overall)}</div>
-            <PerformanceBadge pct={overall} thresholds={project.performance_thresholds} />
+            <PerformanceBadge pct={overall} rating={overallRating(project)} thresholds={project.performance_thresholds} />
           </div>
         </header>
 
@@ -167,7 +167,7 @@ const ReportsView = () => {
                 <div key={p.id} className="border border-border rounded-lg p-3">
                   <div className="text-[10px] uppercase tracking-widest text-muted-foreground">{p.short}</div>
                   <div className="font-serif text-2xl mt-1 tabular-nums">{fmtPct(s)}</div>
-                  <PerformanceBadge pct={s} thresholds={project.performance_thresholds} showLabel={false} />
+                  <PerformanceBadge pct={s} rating={perspectiveRating(p.id, project.objectives, project.measures, project.targets, project.performance_thresholds)} thresholds={project.performance_thresholds} showLabel={false} />
                 </div>
               );
             })}

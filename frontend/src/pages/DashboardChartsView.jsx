@@ -11,7 +11,7 @@ import FilterBar, { applyObjectiveFilter } from "../components/FilterBar";
 import { useScorecard } from "../context/ScorecardContext";
 import { PERSPECTIVES, PERSPECTIVE_MAP } from "../lib/constants";
 import {
-  overallScore, perspectiveScore, objectiveScore, measureAchievement, fmtPct,
+  overallScore, perspectiveScore, objectiveScore, measureAchievement, fmtPct, overallRating, measureRating,
 } from "../lib/calculations";
 import { useTheme } from "../context/ThemeProvider";
 
@@ -125,7 +125,7 @@ const DashboardChartsView = ({ filters, setFilters }) => {
             </ResponsiveContainer>
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
               <div className="font-serif text-4xl tabular-nums">{overall.toFixed(1)}%</div>
-              <PerformanceBadge pct={overall} thresholds={project.performance_thresholds} showLabel={false} />
+              <PerformanceBadge pct={overall} rating={overallRating(subProject)} thresholds={project.performance_thresholds} showLabel={false} />
             </div>
           </div>
         </Card>
@@ -241,7 +241,7 @@ const MeasureList = ({ items, project }) => {
             </div>
             <div className="text-right">
               <div className="tabular-nums font-medium text-sm">{pct.toFixed(1)}%</div>
-              <PerformanceBadge pct={pct} thresholds={project.performance_thresholds} showLabel={false} />
+              <PerformanceBadge pct={pct} rating={measureRating(m, project.targets, project.performance_thresholds)} thresholds={project.performance_thresholds} showLabel={false} />
             </div>
           </div>
         );

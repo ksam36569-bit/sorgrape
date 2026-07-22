@@ -27,8 +27,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Upload, Grape, FolderKanban, Sparkles, BarChart3, Network, Layers, Rocket, FileText, ClipboardList } from "lucide-react";
 import {
-  overallScore, perspectiveScore, perspectiveObjectiveWeightSum,
-  totalPerspectiveWeight, fmtPct,
+  overallScore, perspectiveScore, perspectiveObjectiveWeightSum, totalPerspectiveWeight, fmtPct, perspectiveRating, overallRating,
 } from "../lib/calculations";
 import { PERSPECTIVES, PERSPECTIVE_MAP } from "../lib/constants";
 import { DASH, SECTION } from "../constants/testIds";
@@ -185,7 +184,7 @@ const ScorecardPage = () => {
             <div className="ml-auto flex items-center gap-3 text-xs text-muted-foreground">
               <span>Overall</span>
               <div className="font-serif text-lg text-foreground tabular-nums" data-testid="header-overall">{fmtPct(overall)}</div>
-              <PerformanceBadge pct={overall} thresholds={project.performance_thresholds} showLabel={false} />
+              <PerformanceBadge pct={overall} rating={overallRating(project)} thresholds={project.performance_thresholds} showLabel={false} />
             </div>
           </div>
 
@@ -290,7 +289,7 @@ const ScorecardSection = ({ project, filters, setFilters, objectivesFiltered, vi
               <div className="text-[10px] uppercase tracking-[0.28em] text-muted-foreground">{p.short}</div>
               <div className="mt-2 flex items-baseline gap-2">
                 <div className="font-serif text-3xl tabular-nums">{fmtPct(s, 0)}</div>
-                <PerformanceBadge pct={s} thresholds={project.performance_thresholds} showLabel={false} />
+                <PerformanceBadge pct={s} rating={perspectiveRating(p.id, project.objectives, project.measures, project.targets, project.performance_thresholds)} thresholds={project.performance_thresholds} showLabel={false} />
               </div>
               <div className="mt-3 text-xs text-muted-foreground">
                 {cnt} objective{cnt === 1 ? "" : "s"} · weight {pw}%
@@ -447,6 +446,7 @@ const PeriodView = ({ project }) => {
                   <Card key={pg.period} className="p-5" data-testid={`period-card-${pg.period}`}>
                     <div className="flex items-baseline justify-between">
                       <div className="font-serif text-2xl">{pg.period}</div>
+                      {/* Average across a time period, not a parent of these measures — percentage band is correct. */}
                       <PerformanceBadge pct={avg} thresholds={project.performance_thresholds} />
                     </div>
                     <div className="mt-4 space-y-2">

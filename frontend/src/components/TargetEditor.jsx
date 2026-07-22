@@ -5,7 +5,9 @@ import { toast } from "sonner";
 import { api } from "../lib/api";
 import { useScorecard } from "../context/ScorecardContext";
 import PerformanceBadge from "./PerformanceBadge";
-import { achievementPct, measureAchievement, fmtPct } from "../lib/calculations";
+import {
+  achievementPct, measureAchievement, fmtPct, measureRating,
+} from "../lib/calculations";
 import { annualPeriods, quarterPeriods } from "../lib/constants";
 import { Plus, Trash2 } from "lucide-react";
 
@@ -78,7 +80,7 @@ const TargetEditor = ({ measure }) => {
         <div className="text-xs uppercase tracking-[0.25em] text-muted-foreground">
           Targets · {measure.time_period}
         </div>
-        <PerformanceBadge pct={avg} thresholds={project.performance_thresholds} testId={`measure-achievement-${measure.id}`} />
+        <PerformanceBadge pct={avg} rating={measureRating(measure, project.targets, project.performance_thresholds)} thresholds={project.performance_thresholds} testId={`measure-achievement-${measure.id}`} />
       </div>
 
       {targets.length > 0 && (
@@ -112,6 +114,7 @@ const TargetEditor = ({ measure }) => {
                 data-testid={`target-actual-${t.id}`}
               />
               <div className="col-span-2 text-right tabular-nums text-sm">
+                {/* One target row, not a node in the hierarchy — a percentage band is what this means. */}
                 <PerformanceBadge pct={pct} thresholds={project.performance_thresholds} showLabel={false} />
                 <span className="ml-2 text-xs text-muted-foreground">{fmtPct(pct)}</span>
               </div>

@@ -4,8 +4,7 @@ import { useScorecard } from "../context/ScorecardContext";
 import PerformanceBadge from "../components/PerformanceBadge";
 import { PERSPECTIVES, PERSPECTIVE_MAP } from "../lib/constants";
 import {
-  overallScore, perspectiveScore, objectiveScore, measureAchievement,
-  measureContributionPct, fmtPct,
+  overallScore, perspectiveScore, objectiveScore, measureAchievement, measureContributionPct, fmtPct, overallRating, perspectiveRating, objectiveRating, measureRating,
 } from "../lib/calculations";
 import { motion } from "framer-motion";
 import { ChevronRight } from "lucide-react";
@@ -20,7 +19,7 @@ const AlignmentView = () => {
         <div className="text-[10px] uppercase tracking-[0.28em] text-muted-foreground">Strategic alignment</div>
         <div className="mt-1 flex items-baseline gap-3 flex-wrap">
           <h2 className="font-serif text-4xl">{fmtPct(overall)}</h2>
-          <PerformanceBadge pct={overall} thresholds={project.performance_thresholds} />
+          <PerformanceBadge pct={overall} rating={overallRating(project)} thresholds={project.performance_thresholds} />
           <span className="text-sm text-muted-foreground">Overall balanced score, rolled up from every measure.</span>
         </div>
       </Card>
@@ -46,7 +45,7 @@ const AlignmentView = () => {
                 <span className="text-sm text-muted-foreground">weight <b className="text-foreground">{pWeight}%</b></span>
                 <span className="text-sm text-muted-foreground">score <b className="text-foreground">{fmtPct(pScore)}</b></span>
                 <span className="text-sm text-muted-foreground">contribution to overall <b className="text-foreground">{fmtPct(contribution)}</b></span>
-                <PerformanceBadge pct={pScore} thresholds={project.performance_thresholds} showLabel={false} />
+                <PerformanceBadge pct={pScore} rating={perspectiveRating(p.id, project.objectives, project.measures, project.targets, project.performance_thresholds)} thresholds={project.performance_thresholds} showLabel={false} />
               </div>
 
               <div className="space-y-3">
@@ -68,7 +67,7 @@ const AlignmentView = () => {
                           <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Objective score</div>
                           <div className="font-serif text-lg tabular-nums">{fmtPct(oScore)}</div>
                         </div>
-                        <PerformanceBadge pct={oScore} thresholds={project.performance_thresholds} showLabel={false} />
+                        <PerformanceBadge pct={oScore} rating={objectiveRating(o, project.measures, project.targets, project.performance_thresholds)} thresholds={project.performance_thresholds} showLabel={false} />
                       </div>
 
                       {/* Measures & initiatives */}
@@ -89,7 +88,7 @@ const AlignmentView = () => {
                                   <span className="text-xs text-muted-foreground">contribution {contrib.toFixed(1)}%</span>
                                   <div className="ml-auto flex items-center gap-2">
                                     <span className="tabular-nums text-sm">{fmtPct(mPct)}</span>
-                                    <PerformanceBadge pct={mPct} thresholds={project.performance_thresholds} showLabel={false} />
+                                    <PerformanceBadge pct={mPct} rating={measureRating(m, project.targets, project.performance_thresholds)} thresholds={project.performance_thresholds} showLabel={false} />
                                   </div>
                                 </div>
                                 {inits.length > 0 && (
