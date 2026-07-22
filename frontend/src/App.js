@@ -22,7 +22,7 @@ function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </BrowserRouter>
-        <Toaster richColors position="top-right" theme="light" />
+        <Toaster richColors position="bottom-right" theme="light" offset="20px" />
       </ScorecardProvider>
     </ThemeProvider>
   );

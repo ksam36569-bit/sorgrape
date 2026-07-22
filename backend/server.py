@@ -276,10 +276,6 @@ async def update_department(pid: str, did: str, payload: DepartmentIn):
 async def delete_department(pid: str, did: str):
     await PROJECTS.update_one({"id": pid}, {"$pull": {"departments": {"id": did}}})
     # unassign from objectives
-    await PROJECTS.update_one(
-        {"id": pid},
-        {"$set": {}},
-    )
     doc = await _get_project(pid)
     for o in doc.get("objectives", []):
         if o.get("department_id") == did:
