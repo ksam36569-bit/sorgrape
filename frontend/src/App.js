@@ -5,6 +5,7 @@ import { Toaster } from "sonner";
 import { ThemeProvider } from "@/context/ThemeProvider";
 import { ScorecardProvider } from "@/context/ScorecardContext";
 import EntryScreen from "@/pages/EntryScreen";
+import { isConfigured } from "@/lib/supabase";
 
 // The entry screen is what everyone lands on, so it stays in the main bundle.
 // The rest are split out — a visitor who never opens the scorecard never pays
@@ -28,7 +29,35 @@ function RouteFallback() {
   );
 }
 
+/**
+ * Shown when the build has no Supabase credentials. Without this the app would
+ * white-screen on a missing environment variable, which tells the reader nothing.
+ */
+function NeedsConfiguration() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-[#FBF6F3] px-6 text-[#4A2027]">
+      <div className="max-w-lg">
+        <h1 className="font-serif text-3xl text-[#5C1622]">Almost there</h1>
+        <p className="mt-4 text-sm leading-relaxed text-[#6B5A55]">
+          This deployment has no database credentials, so there is nothing to load yet.
+          Add these two variables in your hosting settings and redeploy:
+        </p>
+        <ul className="mt-4 space-y-1.5 font-mono text-xs text-[#5C1622]">
+          <li>REACT_APP_SUPABASE_URL</li>
+          <li>REACT_APP_SUPABASE_ANON_KEY</li>
+        </ul>
+        <p className="mt-4 text-xs leading-relaxed text-[#8A7671]">
+          Both are in the Supabase dashboard under Project Settings → API. They are
+          read at build time, so a redeploy is required after adding them.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function App() {
+  if (!isConfigured) return <NeedsConfiguration />;
+
   return (
     <ThemeProvider>
       <ScorecardProvider>
