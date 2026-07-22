@@ -50,6 +50,8 @@ export const SECTION = {
   alignment: "section-alignment",
   initiatives: "section-initiatives",
   reports: "section-reports",
+  okrs: "section-okrs",
+  kpis: "section-kpis",
 };
 
 export const INIT = {

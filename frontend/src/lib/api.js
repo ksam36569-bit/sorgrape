@@ -23,7 +23,13 @@ const CHILD_TABLES = [
   "targets",
   "initiatives",
   "strategy_edges",
+  "okrs",
+  "key_results",
 ];
+
+// OKRs and key results are user-reorderable, so they sort on `position` rather
+// than created_at like everything else.
+const ORDERED_BY_POSITION = new Set(["okrs", "key_results"]);
 
 /** Unwrap a PostgREST result, turning its error into a throw. */
 function unwrap({ data, error }) {
@@ -51,7 +57,8 @@ function shapeProject(row) {
   const project = { ...row, perspectives: PERSPECTIVES };
   for (const t of CHILD_TABLES) {
     const rows = Array.isArray(row[t]) ? [...row[t]] : [];
-    rows.sort((a, b) => String(a.created_at || "").localeCompare(String(b.created_at || "")));
+    if (ORDERED_BY_POSITION.has(t)) rows.sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+    else rows.sort((a, b) => String(a.created_at || "").localeCompare(String(b.created_at || "")));
     project[t] = rows;
   }
   return project;
@@ -148,6 +155,8 @@ export const api = {
       targets = [],
       initiatives = [],
       strategy_edges = [],
+      okrs = [],
+      key_results: keyResults = [],
       ...fields
     } = doc || {};
 
@@ -183,6 +192,12 @@ export const api = {
     await insertMapped("initiatives", initiatives, (i) => ({
       measure_ids: (i.measure_ids || []).map((m) => measureIds.get(m)).filter(Boolean),
     }));
+    const okrIds = await insertMapped("okrs", okrs);
+    await insertMapped(
+      "key_results",
+      keyResults.filter((k) => okrIds.has(k.okr_id)),
+      (k) => ({ okr_id: okrIds.get(k.okr_id) })
+    );
     await insertMapped(
       "strategy_edges",
       strategy_edges.filter((e) => objIds.has(e.source) && objIds.has(e.target)),
@@ -524,6 +539,64 @@ export const api = {
     return { updated, created, project: await fetchProject(pid) };
   },
 
+  // ----------------------------------------------------------------- OKRs
+
+  /** Append an OKR to the end of the list. */
+  addOkr: async (pid, payload) => {
+    const rows = unwrap(await supabase.from("okrs").select("position").eq("project_id", pid));
+    const position = rows.reduce((max, r) => Math.max(max, r.position ?? 0), -1) + 1;
+    return unwrap(
+      await supabase.from("okrs").insert({ ...strip(payload), project_id: pid, position }).select().single()
+    );
+  },
+
+  updateOkr: async (pid, oid, payload) =>
+    unwrap(
+      await supabase.from("okrs").update(strip(payload)).eq("id", oid).eq("project_id", pid).select().single()
+    ),
+
+  // Key results go with it via ON DELETE CASCADE.
+  deleteOkr: async (pid, oid) => {
+    unwrap(await supabase.from("okrs").delete().eq("id", oid).eq("project_id", pid));
+    return { ok: true };
+  },
+
+  /** Persist a new order; callers pass ids in the order they should appear. */
+  reorderOkrs: async (pid, orderedIds) => {
+    for (let i = 0; i < orderedIds.length; i += 1) {
+      unwrap(await supabase.from("okrs").update({ position: i }).eq("id", orderedIds[i]).eq("project_id", pid));
+    }
+    return { ok: true };
+  },
+
+  addKeyResult: async (pid, okrId, payload) => {
+    const rows = unwrap(await supabase.from("key_results").select("position").eq("okr_id", okrId));
+    const position = rows.reduce((max, r) => Math.max(max, r.position ?? 0), -1) + 1;
+    return unwrap(
+      await supabase
+        .from("key_results")
+        .insert({ ...strip(payload), project_id: pid, okr_id: okrId, position })
+        .select()
+        .single()
+    );
+  },
+
+  updateKeyResult: async (pid, krId, payload) =>
+    unwrap(
+      await supabase
+        .from("key_results")
+        .update(strip(payload, ["id", "project_id", "okr_id", "created_at"]))
+        .eq("id", krId)
+        .eq("project_id", pid)
+        .select()
+        .single()
+    ),
+
+  deleteKeyResult: async (pid, krId) => {
+    unwrap(await supabase.from("key_results").delete().eq("id", krId).eq("project_id", pid));
+    return { ok: true };
+  },
+
   // ------------------------------------------------------- strategy edges
 
   addStrategyEdge: async (pid, source, target, label = "") =>
@@ -542,7 +615,7 @@ export const api = {
 
   // ------------------------------------------------------------------ AI
   // Stays server-side: the provider keys must not reach the browser.
-  aiSummary: async (pid) => {
+  aiSummary: async (pid, signal) => {
     // The snapshot is posted rather than re-read server-side, so the function
     // needs no database credentials of its own.
     const project = await fetchProject(pid);
@@ -550,6 +623,7 @@ export const api = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ project }),
+      signal,
     });
   },
 };

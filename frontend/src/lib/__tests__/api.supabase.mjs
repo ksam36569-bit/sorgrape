@@ -152,5 +152,45 @@ const dupd = await api.duplicateProject(p.id);
 const dm = dupd.measures.find(m=>m.name==="Net Debt / EBITDA");
 ok("they carry through a duplicate", dm && dm.direction==="higher" && Number(dm.green_threshold)===9);
 
+
+// --- OKRs -----------------------------------------------------------------
+const okrA = await api.addOkr(p.id, { title:"Premiumise the portfolio", owner:"Commercial" });
+const okrB = await api.addOkr(p.id, { title:"Consolidate Iberia", owner:"Iberia" });
+const okrC = await api.addOkr(p.id, { title:"Accelerate STEP", owner:"TO" });
+eq("new OKRs append in order", [okrA.position,okrB.position,okrC.position], [0,1,2]);
+
+const krA = await api.addKeyResult(p.id, okrA.id, { description:"Fine Wines share", baseline:18, current_value:20, target:25, unit:"%" });
+const krB = await api.addKeyResult(p.id, okrA.id, { description:"ASP uplift", baseline:0, current_value:3, target:6 });
+eq("key results append within their OKR", [krA.position,krB.position], [0,1]);
+ok("a key result belongs to its OKR", krA.okr_id===okrA.id);
+
+let okrProj = await api.getProject(p.id);
+eq("OKRs and key results load with the project", [okrProj.okrs.length, okrProj.key_results.length], [3,2]);
+eq("OKRs come back in position order", okrProj.okrs.map(o=>o.title), ["Premiumise the portfolio","Consolidate Iberia","Accelerate STEP"]);
+
+await api.reorderOkrs(p.id, [okrC.id, okrA.id, okrB.id]);
+okrProj = await api.getProject(p.id);
+eq("reordering persists", okrProj.okrs.map(o=>o.title), ["Accelerate STEP","Premiumise the portfolio","Consolidate Iberia"]);
+
+const krEdited = await api.updateKeyResult(p.id, krA.id, { description:"Fine Wines share of revenue", current_value:22, status_override:"amber", owner:"Commercial", due_date:"2026-12-31" });
+eq("key result edits persist", [krEdited.description, Number(krEdited.current_value), krEdited.status_override, krEdited.due_date],
+   ["Fine Wines share of revenue", 22, "amber", "2026-12-31"]);
+ok("OKR title edits persist", (await api.updateOkr(p.id, okrA.id, { title:"Premiumise for value growth" })).title.endsWith("value growth"));
+
+await api.deleteKeyResult(p.id, krB.id);
+okrProj = await api.getProject(p.id);
+eq("deleting a key result leaves its OKR alone", [okrProj.okrs.length, okrProj.key_results.length], [3,1]);
+
+await api.deleteOkr(p.id, okrA.id);
+okrProj = await api.getProject(p.id);
+eq("deleting an OKR takes its key results with it", [okrProj.okrs.length, okrProj.key_results.length], [2,0]);
+
+const okrX = await api.addOkr(p.id, { title:"Carry me" });
+await api.addKeyResult(p.id, okrX.id, { description:"KR", baseline:0, current_value:1, target:2 });
+const dupOkr = await api.duplicateProject(p.id);
+ok("OKRs and key results survive a duplicate", dupOkr.okrs.length===3 && dupOkr.key_results.length===1);
+ok("duplicated key results point at the duplicated OKR",
+   dupOkr.key_results.every(k => dupOkr.okrs.some(o => o.id===k.okr_id)) && !dupOkr.okrs.some(o => o.id===okrX.id));
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

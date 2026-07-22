@@ -20,12 +20,14 @@ const StrategyMapView = lazy(() => import("./StrategyMapView"));
 const AlignmentView = lazy(() => import("./AlignmentView"));
 const InitiativesView = lazy(() => import("./InitiativesView"));
 const ReportsView = lazy(() => import("./ReportsView"));
+const OkrsView = lazy(() => import("./OkrsView"));
+const KpisView = lazy(() => import("./KpisView"));
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Upload, Grape, FolderKanban, Sparkles, BarChart3, Network, Layers, Rocket, FileText, ClipboardList } from "lucide-react";
+import { Plus, Upload, Grape, FolderKanban, Sparkles, BarChart3, Network, Layers, Rocket, FileText, ClipboardList, Target, Gauge } from "lucide-react";
 import {
   overallScore, perspectiveScore, perspectiveObjectiveWeightSum, totalPerspectiveWeight, fmtPct, perspectiveRating, overallRating,
 } from "../lib/calculations";
@@ -49,7 +51,7 @@ const ScorecardPage = () => {
   const { project, projects, loadProject, refreshProject, currentProjectId } = useScorecard();
   const navigate = useNavigate();
 
-  const [section, setSection] = useState("scorecard"); // scorecard | dashboard | strategy-map | alignment | initiatives | reports
+  const [section, setSection] = useState("scorecard"); // scorecard | dashboard | okrs | kpis | strategy-map | alignment | initiatives | reports
   const [view, setView] = useState("perspective"); // sub-view inside scorecard
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
 
@@ -175,6 +177,8 @@ const ScorecardPage = () => {
               <TabsList data-testid="section-tabs">
                 <TabsTrigger value="scorecard" data-testid={SECTION.scorecard}><ClipboardList className="h-3.5 w-3.5 mr-1.5" /> Scorecard</TabsTrigger>
                 <TabsTrigger value="dashboard" data-testid={SECTION.dashboard}><BarChart3 className="h-3.5 w-3.5 mr-1.5" /> Dashboard</TabsTrigger>
+                <TabsTrigger value="okrs" data-testid={SECTION.okrs}><Target className="h-3.5 w-3.5 mr-1.5" /> OKRs</TabsTrigger>
+                <TabsTrigger value="kpis" data-testid={SECTION.kpis}><Gauge className="h-3.5 w-3.5 mr-1.5" /> KPIs</TabsTrigger>
                 <TabsTrigger value="strategy-map" data-testid={SECTION.strategyMap}><Network className="h-3.5 w-3.5 mr-1.5" /> Strategy Map</TabsTrigger>
                 <TabsTrigger value="alignment" data-testid={SECTION.alignment}><Layers className="h-3.5 w-3.5 mr-1.5" /> Alignment</TabsTrigger>
                 <TabsTrigger value="initiatives" data-testid={SECTION.initiatives}><Rocket className="h-3.5 w-3.5 mr-1.5" /> Initiatives</TabsTrigger>
@@ -224,6 +228,8 @@ const ScorecardPage = () => {
                 <DashboardChartsView filters={filters} setFilters={setFilters} />
               )}
 
+              {section === "okrs" && <OkrsView />}
+              {section === "kpis" && <KpisView />}
               {section === "strategy-map" && <StrategyMapView />}
               {section === "alignment" && <AlignmentView />}
               {section === "initiatives" && (

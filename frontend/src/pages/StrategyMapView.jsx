@@ -136,29 +136,39 @@ const StrategyMapView = () => {
   );
 
   const suggestStandardChain = async () => {
-    // For each objective, connect it to the first objective in the perspective above (L&G → Internal → Customer → Financial)
+    // Pair objectives across adjacent perspectives one-to-one, cycling the
+    // shorter list. Connecting every objective to every objective above it —
+    // which this used to do — produces 27 edges from 12 objectives, and a map
+    // where everything points at everything says nothing at all.
     const buckets = { financial: [], customer: [], internal: [], learning: [] };
     for (const o of project.objectives) if (buckets[o.perspective_id]) buckets[o.perspective_id].push(o);
+
     const order = ["learning", "internal", "customer", "financial"];
     const existing = new Set((project.strategy_edges || []).map((e) => `${e.source}::${e.target}`));
     let added = 0;
-    for (let i = 0; i < order.length - 1; i++) {
+
+    for (let i = 0; i < order.length - 1; i += 1) {
       const from = buckets[order[i]];
       const to = buckets[order[i + 1]];
-      for (const s of from) {
-        for (const t of to) {
-          const k = `${s.id}::${t.id}`;
-          if (existing.has(k)) continue;
-          try {
-            await api.addStrategyEdge(project.id, s.id, t.id);
-            existing.add(k);
-            added++;
-          } catch {}
+      if (!from.length || !to.length) continue;
+      const steps = Math.max(from.length, to.length);
+      for (let n = 0; n < steps; n += 1) {
+        const s = from[n % from.length];
+        const t = to[n % to.length];
+        const key = `${s.id}::${t.id}`;
+        if (existing.has(key)) continue;
+        try {
+          await api.addStrategyEdge(project.id, s.id, t.id);
+          existing.add(key);
+          added += 1;
+        } catch {
+          /* a duplicate edge is not worth interrupting the run for */
         }
       }
     }
+
     await refreshProject();
-    toast.success(`Added ${added} standard connections`);
+    toast.success(added ? `Added ${added} connections` : "Already connected");
   };
 
   const bgColor = theme === "dark" ? "#1A1213" : "#FAFAF8";

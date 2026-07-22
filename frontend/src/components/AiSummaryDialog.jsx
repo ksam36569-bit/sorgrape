@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Sparkles, Copy, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { useScorecard } from "../context/ScorecardContext";
-import { BASE } from "@/lib/api";
+import { api } from "@/lib/api";
 
 const AiSummaryDialog = ({ open, onOpenChange }) => {
   const { project } = useScorecard();
@@ -25,11 +25,10 @@ const AiSummaryDialog = ({ open, onOpenChange }) => {
     setRunning(true);
     controllerRef.current = new AbortController();
     try {
-      const res = await fetch(`${BASE}/api/projects/${project.id}/ai-summary`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        signal: controllerRef.current.signal,
-      });
+      // Goes through the data layer rather than a hand-written URL. This had
+      // drifted to the old FastAPI route and was returning 404 while the
+      // endpoint itself was fine.
+      const res = await api.aiSummary(project.id, controllerRef.current.signal);
       if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
@@ -95,7 +94,7 @@ const AiSummaryDialog = ({ open, onOpenChange }) => {
             Analyze &amp; summarize
           </DialogTitle>
           <p className="text-sm text-muted-foreground mt-1">
-            Claude Sonnet 4.5 reads the current scorecard state and writes an executive briefing —
+            Reads the current scorecard state and writes an executive briefing —
             wins, risks and recommended next actions.
           </p>
         </DialogHeader>

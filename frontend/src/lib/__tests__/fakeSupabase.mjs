@@ -6,11 +6,12 @@ import { randomUUID } from "crypto";
 export function makeFakeSupabase() {
   const db = {
     projects: [], departments: [], objectives: [], measures: [],
-    targets: [], initiatives: [], strategy_edges: [],
+    targets: [], initiatives: [], strategy_edges: [], okrs: [], key_results: [],
   };
 
   const cascade = {
-    projects:    (id) => { for (const t of ["departments","objectives","measures","targets","initiatives","strategy_edges"]) del(t, r => r.project_id === id); },
+    projects:    (id) => { for (const t of ["departments","objectives","measures","targets","initiatives","strategy_edges","okrs","key_results"]) del(t, r => r.project_id === id); },
+    okrs:        (id) => { del("key_results", r => r.okr_id === id); },
     departments: (id) => { for (const o of db.objectives) if (o.department_id === id) o.department_id = null; },  // ON DELETE SET NULL
     objectives:  (id) => { del("measures", r => r.objective_id === id); del("strategy_edges", r => r.source === id || r.target === id); },
     measures:    (id) => { del("targets", r => r.measure_id === id); },
@@ -36,6 +37,9 @@ export function makeFakeSupabase() {
       status:"Planned", risk_level:"Low", expected_impact:"", dependencies:"", measure_ids:[] },
     strategy_edges: { label:"" },
     departments: {},
+    okrs: { description:"", owner:"", position:0 },
+    key_results: { owner:"", due_date:"", unit:"", baseline:0, current_value:0, target:0,
+                   status_override:null, position:0 },
   };
 
   let seq = 0;
