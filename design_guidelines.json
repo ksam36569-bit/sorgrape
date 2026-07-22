@@ -1,0 +1,133 @@
+{
+  "theme": "light_and_dark",
+  "app_type": "hybrid_fullstack",
+  "typography": {
+    "heading_font": "Playfair Display, serif",
+    "body_font": "Manrope, sans-serif",
+    "strategy": "High-contrast editorial typography paired with a clean sans-serif UI for dashboard density. Headings carry the Sogrape heritage and luxury feel; body copy ensures optimal readability for data.",
+    "hierarchy": {
+      "h1": "text-4xl sm:text-5xl font-serif tracking-tight",
+      "h2": "text-2xl sm:text-3xl font-serif tracking-tight",
+      "h3": "text-xl sm:text-2xl font-serif tracking-tight",
+      "h4": "text-lg sm:text-xl font-sans tracking-tight font-medium",
+      "body": "text-sm sm:text-base font-sans text-muted-foreground",
+      "data_label": "text-xs font-sans uppercase tracking-wider text-muted-foreground font-semibold"
+    }
+  },
+  "colors": {
+    "light_mode": {
+      "background": "#FAFAF8",
+      "surface": "#FFFFFF",
+      "primary": "#721B29",
+      "primary_foreground": "#FFFFFF",
+      "secondary": "#9F5E46",
+      "secondary_foreground": "#FFFFFF",
+      "accent": "#C6A87C",
+      "accent_foreground": "#1A1213",
+      "muted": "#F0EBE6",
+      "muted_foreground": "#7A7270",
+      "border": "#E5DFDA",
+      "text": "#1A1213"
+    },
+    "dark_mode": {
+      "background": "#1A1213",
+      "surface": "#24191A",
+      "primary": "#9B2A3E",
+      "primary_foreground": "#FFFFFF",
+      "secondary": "#B8755D",
+      "secondary_foreground": "#FFFFFF",
+      "accent": "#D8BC94",
+      "accent_foreground": "#1A1213",
+      "muted": "#362729",
+      "muted_foreground": "#A39795",
+      "border": "#4A373A",
+      "text": "#F4EFEA"
+    },
+    "status_traffic_lights": {
+      "description": "5-band traffic-light indicators. Used strictly for performance ratings. Bright colors only appear here, tuned to the wine palette.",
+      "red_danger": {
+        "light": "#D93838",
+        "dark": "#E85656",
+        "threshold": "< 70%"
+      },
+      "amber_warning": {
+        "light": "#D98A29",
+        "dark": "#E5A122",
+        "threshold": "70% - 89%"
+      },
+      "green_success": {
+        "light": "#35824C",
+        "dark": "#4A9B61",
+        "threshold": "> 90%"
+      }
+    }
+  },
+  "layout_and_spacing": {
+    "spacing_scale": "Generous padding (p-8, p-12) for outer containers to create an airy, premium feel. Tight spacing (gap-4) for data density.",
+    "sidebar": "Persistent left sidebar, 260px width. Deep bordeaux in both themes, or ultra-dark bordeaux in dark mode. Expandable sections for 4 Perspectives.",
+    "dashboard_grid": "Bento-style layout for KPIs. 3-4 column grid (grid-cols-1 md:grid-cols-2 lg:grid-cols-4). Tight gaps (gap-4) for data relation, but generous internal padding (p-6) in cards.",
+    "card_style": "Minimalist borders (1px solid border-border), flat backgrounds, subtle 8px border radius (rounded-lg). Avoid heavy box-shadows. Opt for a tactile, crisp editorial look."
+  },
+  "components": {
+    "buttons": "Slightly rounded (rounded-md). Primary buttons use deep bordeaux. Accent buttons use muted gold. Hover states must shift lightness smoothly.",
+    "data_tables": "Shadcn/UI tables. Sortable headers. Clean 1px border below rows. Left-aligned text, right-aligned numbers. Sticky headers for large datasets.",
+    "charts": "Recharts. Radar chart for Perspective balance, Bar charts for Department comparisons, Trend lines for timeframe views. Gauge charts for Scorecard totals. Charts must inherit the brand palette (bordeaux, terracotta, gold).",
+    "strategy_map": "React Flow. Use custom node components with bordeaux borders and subtle backgrounds. Edges should be smooth, animated stroke lines to show alignment across Perspectives.",
+    "inputs": "Shadcn/UI forms. Explicit labels. Hover and focus states must use a delicate 2px ring in primary or accent color.",
+    "badges": "Small pill badges with a dot and text. Used for status indicators and Performance Ratings."
+  },
+  "screens": {
+    "entry_screen": {
+      "description": "Branded welcome moment leading to the portal.",
+      "layout": "Centered flexbox. Minimal copy.",
+      "visuals": "Full-bleed vineyard/wine imagery or solid deep-bordeaux background. Centered logo lockup with two wine-glass SVG illustrations side by side."
+    },
+    "setup_wizard": {
+      "description": "Guided setup workflow for Company details, Hierarchy, Vision/Mission, and Strategic Themes.",
+      "layout": "Centered card with a progress stepper. Editorial typography for prompts.",
+      "animations": "Staggered entrance for form fields."
+    },
+    "main_dashboard": {
+      "description": "The command center. 3 interchangeable views (Perspective, Department, Time Period).",
+      "layout": "Top bar with View toggles (Tabs). High-level KPI cards at the top. Charts (Radar, Trend) below. Data grid at the bottom."
+    },
+    "strategy_map": {
+      "description": "Interactive flow of objectives rolling up into perspectives.",
+      "layout": "Full width/height canvas using React Flow. Floating zoom/pan controls."
+    }
+  },
+  "imagery": {
+    "vineyard_hero": "https://images.unsplash.com/photo-1567072629554-20e689de2400?crop=entropy&cs=srgb&fm=jpg",
+    "vineyard_empty_state": "https://images.pexels.com/photos/18248851/pexels-photo-18248851.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+    "cellar_background": "https://images.pexels.com/photos/37389867/pexels-photo-37389867.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+    "wine_glass_reference": "https://images.unsplash.com/photo-1743584886209-1884ad5827da?crop=entropy&cs=srgb&fm=jpg",
+    "usage": "Use vineyard photography in empty states, section headers, and the entry screen. Generous whitespace around imagery."
+  },
+  "motion_and_interactions": {
+    "general": "Understated and premium. No garish or bouncy animations.",
+    "page_transitions": "Framer Motion: Fade in with a very slight upward translate (y: 10 to 0, opacity: 0 to 1, duration: 0.4s, ease: easeOut).",
+    "hover_states": "Cards lift slightly (-translate-y-1) with a soft ambient shadow increase. Links feature a subtle underline expansion.",
+    "react_flow": "Use animated edges (stroke-dasharray) to show flow from Initiatives -> Targets -> Measures -> Objectives."
+  },
+  "instructions_to_main_agent": [
+    "Strictly follow the color palette. Never use pure black (#000000), use the Near-black Bordeaux (#1A1213).",
+    "Import Google Fonts: 'Playfair Display' for serif headings and 'Manrope' for body/UI text in index.html or global css.",
+    "In the entry screen, craft an elegant inline SVG for the two wine glasses to act as the illustration, using the muted gold and bordeaux stroke colors.",
+    "In the Strategy Map component, ensure React Flow custom nodes are styled as premium cards with subtle borders, not default gray boxes.",
+    "The 5-band traffic-light system must be clearly visible but not neon. Rely on the provided 'status_traffic_lights' hex codes.",
+    "Implement light and dark mode toggles. Both must look distinctly like a wine brand (cream/bordeaux vs. black-bordeaux/terracotta).",
+    "Ensure the dashboard uses Recharts. Example needed: Radar chart for Perspective weighting.",
+    "Integrate Lucide-react for iconography. Use light stroke widths if possible to maintain elegance."
+  ],
+  "UNIVERSAL_GUIDELINES_FOR_MAIN_AGENT": [
+    "Do not use generic centered layouts or simplistic gradients.",
+    "Create depth through layered design elements with z-index hierarchy.",
+    "Use glass-morphism effects carefully; ensure readability via solid or slightly blurred backgrounds for dropdowns. DO NOT use completely transparent backgrounds for overlays.",
+    "Do NOT apply universal transitions (transition: all). Use specific property transitions.",
+    "NEVER center-align the main app container.",
+    "Ensure all interactive elements have data-testid attributes (kebab-case, role-based).",
+    "Avoid the 'Vercel default' look by adjusting Shadcn border radii and colors to match the heritage brand.",
+    "Use Sonner for toast notifications. Ensure toasts inherit the elegant serif/sans font stack.",
+    "For form inputs, use explicit focus rings (focus:ring-2 focus:ring-accent)."
+  ]
+}
