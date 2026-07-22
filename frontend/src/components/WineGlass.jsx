@@ -28,8 +28,13 @@ const WineGlass = ({
 }) => {
   const clipId = `bowl-clip-${id}`;
   const wineId = `wine-grad-${id}`;
-  const height = WINE_BOTTOM - WINE_TOP;
-  const y = WINE_BOTTOM - height * Math.max(0, Math.min(1, level));
+  const span = WINE_BOTTOM - WINE_TOP;
+  const filled = Math.max(0, Math.min(1, level));
+  // Slide a full-height rectangle down out of view rather than animating the
+  // rect's y/height. Framer writes those as CSS pixels, which stop matching user
+  // units the moment the SVG is scaled — that rendered a 0.72 level as ~0.38.
+  // A transform is in user space, so it stays correct at any size.
+  const drop = span * (1 - filled);
 
   return (
     <svg
@@ -70,14 +75,16 @@ const WineGlass = ({
       <g clipPath={`url(#${clipId})`}>
         <motion.rect
           x="0"
+          y={WINE_TOP}
           width="140"
+          height={span + 2}
           initial={false}
-          animate={{ y, height: WINE_BOTTOM - y + 2 }}
+          animate={{ y: drop }}
           transition={transition}
           fill={`url(#${wineId})`}
         />
         {/* Bubbles drift up once there is wine to drift through */}
-        {level > 0.15 &&
+        {filled > 0.15 &&
           [
             { cx: 52, r: 2.1, delay: 0 },
             { cx: 84, r: 1.5, delay: 0.7 },
@@ -86,11 +93,11 @@ const WineGlass = ({
             <motion.circle
               key={i}
               cx={b.cx}
+              cy={WINE_BOTTOM - 6}
               r={b.r}
               fill="#C98A9B"
-              opacity="0.5"
-              initial={{ cy: WINE_BOTTOM - 6 }}
-              animate={{ cy: [WINE_BOTTOM - 6, y + 6], opacity: [0, 0.5, 0] }}
+              // Transform again, for the same unit reason as the fill above.
+              animate={{ y: [0, -(span * filled - 12)], opacity: [0, 0.5, 0] }}
               transition={{ duration: 2.6, delay: b.delay, repeat: Infinity, ease: "easeOut" }}
             />
           ))}
