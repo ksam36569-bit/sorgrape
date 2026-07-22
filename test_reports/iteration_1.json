@@ -1,0 +1,43 @@
+{
+  "summary": "Phase 1 comprehensive testing of Sogrape Balanced Scorecard Builder. Backend: 16/16 pytest cases passed (health, project CRUD + duplicate, department CRUD + unassign-cascade, objective/measure cascade delete, target CRUD, bulk-import add/update/replace with name resolution + parent linking, update-actuals update-and-create). Frontend: Entry screen wine glasses navigate to portal, portal renders scorecard cards, setup wizard 4-step flow works (validation on empty company name, duplicate-department rejected, submit creates project via API), scorecard sidebar + top-bar + all 4 perspective cards + all 3 view tabs work, Objective + Measure CRUD dialogs work end-to-end via API, live target editor computes achievement (50%/85%/95%) with badges and updates header + sidebar overall (6.3%) in real time, weight validation surface ('Objectives sum to 50.0%') visible, theme toggle switches light<->dark and sidebar remains legible, bulk-import dialog + template download button visible.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "DELETE /api/projects/{pid}/departments/{did}", "issue": "Contains a no-op `PROJECTS.update_one({'id': pid}, {'$set': {}})` before the unassign loop that raises `WriteError: '$set' is empty` on some mongo versions. Currently works but is dead code — remove it (server.py lines 279-282)."},
+      {"endpoint": "PUT /api/projects/{pid}/objectives/{oid}", "issue": "Response returns the request payload minus 'id' fields (returns only what was PUT) — not the full stored object. Not a functional bug but inconsistent with add_objective which returns fully-hydrated obj."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Scorecard header (top bar)", "issues": ["Sonner toast (top-right) appears in the same z-index as header buttons and can visually cover 'Objective'/'Bulk import' buttons on narrower viewports; consider offsetting the toaster below the header or reducing toast duration."]},
+      {"screen": "Dev overlay", "issues": ["CRA dev-server surfaces the well-known benign 'ResizeObserver loop completed with undelivered notifications' warning (from Radix UI/Recharts). It appears as a fullscreen error overlay in the preview env and blocks clicks during testing. Not user-facing in production build, but recommend adding a global window.addEventListener('error', ...) filter or upgrading Radix to suppress it."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "Remove dead `$set: {}` update in DELETE /projects/{pid}/departments/{did} (server.py ~L279).",
+    "Optional: suppress ResizeObserver dev-overlay noise in frontend (window error filter) so it doesn't block preview interactions.",
+    "Consider moving Sonner toaster below the top bar so it doesn't overlap the primary action buttons after 'scorecard created' navigation."
+  ],
+  "critical_code_review_comments": [
+    "server.py duplicate_project() copies the same 'id' fields for nested arrays (departments/objectives/measures/targets/initiatives) which means edits to the copy would collide by id if the client caches by (project_id, entity_id). Recommend regenerating nested entity ids in duplicate_project as well.",
+    "ScorecardPage.jsx is 446 lines — nearing the 700-line threshold; consider extracting PerspectiveView/DepartmentView/PeriodView into their own modules to keep it lean.",
+    "BulkImport add mode has an edge case: when an existing entity is found by name AND mode='add', no error is raised and it is silently skipped for departments/measures/objectives (create counter not incremented). This is arguably correct dedupe behaviour but could confuse users if they intended overwriting — surface 'skipped' count in the stats payload.",
+    "server.py bulk-import 'replace' mode clears arrays first and then rebuilds; but if targets are supplied referencing an existing measure name that was ALSO cleared, the target's `measure_id` lookup will fall back to whatever measure is created in the same call — this works correctly here because we rebuild in-order (dept → obj → measure → target), but the ordering is implicit; add a comment."
+  ],
+  "updated_files": [
+    "/app/backend/tests/backend_test.py"
+  ],
+  "success_rate": {"backend": "100% (16/16)", "frontend": "100% of tested flows"},
+  "test_credentials": "n/a (no auth)",
+  "seed_data_creation": "Test project created during UI test was cleaned up via DELETE /api/projects/{id}. Pytest fixtures auto-cleanup their own TEST_* prefixed data.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend fully covered by /app/backend/tests/backend_test.py (pytest, 16 tests, parallel-safe with per-session project fixture). Frontend Phase 1 flows verified end-to-end via Playwright: entry -> portal -> setup wizard -> scorecard -> objective/measure/target CRUD -> live calculations -> theme toggle -> bulk-import dialog. Two benign issues surfaced: (1) CRA dev overlay for ResizeObserver blocks click-through during automated tests — production build unaffected; (2) sonner toast can overlap header buttons post-navigation, needs dismissal or z-index tweak. All data-testids present and correctly targeted. Quick-add target testids include the full period label (e.g. 'quick-add-period-Q1 FY26'), not just 'Q1' — future tests should account for fiscal-year suffix.",
+  "rca_of_the_issue": "n/a — no failing flows"
+}
