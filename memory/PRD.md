@@ -148,3 +148,26 @@ per-perspective counts, and the rollup invariant to the workbook.
 weighted evenly within a perspective and measures evenly within an objective.
 They affect the numeric scores only, never a status colour. Replace them when
 the real weights exist.
+
+## Cross-device sync (2026-07-22)
+
+Browser-local storage was replaced with Supabase Postgres. Edits made on one
+machine now appear on every device and for every viewer; previously they stayed
+in the browser that made them, which is not what "see it at the link" means.
+
+- `supabase/migrations/0001_init.sql` — schema, FK cascades, updated_at triggers,
+  RLS enabled with permissive policies pending auth. Extended with the
+  `direction`, `green_threshold` and `amber_threshold` columns added since it was
+  first written.
+- `supabase/migrations/0002_seed_fy25.sql` — the FY25 scorecard, idempotent, so
+  the data lands once for everyone rather than being bundled per browser.
+- `lib/api.js` keeps the same 27 signatures, so no component changed. The
+  IndexedDB store and the bundled seed are gone.
+- `api/ai-summary.js` receives the snapshot in the request body, so it needs no
+  database credentials of its own.
+
+Tests: `lib/__tests__/api.supabase.mjs` (25) against an in-memory Supabase that
+emulates the cascades and the (measure_id, period) unique index.
+
+**Still unauthenticated.** RLS policies are `using (true)`, so anyone with the
+anon key — which ships in the bundle — can read and write every scorecard.

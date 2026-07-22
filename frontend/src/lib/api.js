@@ -1,16 +1,14 @@
-import { db, newId, nowIso } from "./store";
+import { supabase } from "./supabase";
 
-// Data layer. Everything is stored locally in the browser — see store.js.
-//
-// Each project is one self-contained document holding its own departments,
-// objectives, measures, targets, initiatives and strategy edges. That is the
-// shape the UI has always consumed, so these method signatures are unchanged
-// from when this talked to a REST backend; no calling component knows the
-// difference.
+// Data layer. Talks to Supabase directly — there is no application server any
+// more. Every method below keeps the exact signature and return shape the old
+// FastAPI client had, so the components consuming `api` did not change.
 
 export const BASE = "";
 
-// The four Balanced Scorecard perspectives are fixed by the framework.
+// The four Balanced Scorecard perspectives are fixed by the framework, so they
+// live in code rather than a table. The old API returned them on every project
+// document and the sidebar still expects that.
 export const PERSPECTIVES = [
   { id: "financial", name: "Financial" },
   { id: "customer", name: "Customer" },
@@ -18,12 +16,7 @@ export const PERSPECTIVES = [
   { id: "learning", name: "Learning & Growth" },
 ];
 
-const DEFAULTS = {
-  perspective_weights: { financial: 25, customer: 25, internal: 25, learning: 25 },
-  performance_thresholds: { red_max: 70, amber_max: 90 },
-};
-
-const COLLECTIONS = [
+const CHILD_TABLES = [
   "departments",
   "objectives",
   "measures",
@@ -32,279 +25,340 @@ const COLLECTIONS = [
   "strategy_edges",
 ];
 
-const num = (v) => Number(v ?? 0) || 0;
-
-/** Case-insensitive name match, used by the spreadsheet importers. */
-function findByName(items, name) {
-  const target = String(name ?? "").trim().toLowerCase();
-  return items.find((it) => String(it.name ?? "").trim().toLowerCase() === target) || null;
+/** Unwrap a PostgREST result, turning its error into a throw. */
+function unwrap({ data, error }) {
+  if (error) throw new Error(error.message);
+  return data;
 }
 
-async function load(id) {
-  const project = await db.get(id);
-  if (!project) throw new Error("Project not found");
-  // Older saves may predate a collection being added.
-  for (const c of COLLECTIONS) if (!Array.isArray(project[c])) project[c] = [];
-  project.perspectives = PERSPECTIVES;
-  return project;
-}
-
-async function save(project) {
-  project.updated_at = nowIso();
-  await db.put(project);
-  return project;
-}
-
-/** Strip fields the caller must not set directly. */
-function fields(payload, drop = ["id"]) {
+/** Columns that exist on the row itself, minus anything the caller shouldn't set. */
+function strip(payload, drop = ["id", "project_id", "created_at", "updated_at"]) {
   const out = { ...payload };
   for (const k of drop) delete out[k];
   return out;
 }
 
-/** Add to a collection, returning the created row. */
-async function addTo(pid, collection, values) {
-  const project = await load(pid);
-  const row = { id: newId(), ...fields(values) };
-  project[collection].push(row);
-  await save(project);
-  return row;
+const PROJECT_SELECT = `*, ${CHILD_TABLES.map((t) => `${t}(*)`).join(", ")}`;
+
+/**
+ * Reassemble the self-contained document the UI expects.
+ *
+ * PostgREST returns child rows nested but in arbitrary order, so they are sorted
+ * by created_at to keep list rendering stable between reloads.
+ */
+function shapeProject(row) {
+  if (!row) return null;
+  const project = { ...row, perspectives: PERSPECTIVES };
+  for (const t of CHILD_TABLES) {
+    const rows = Array.isArray(row[t]) ? [...row[t]] : [];
+    rows.sort((a, b) => String(a.created_at || "").localeCompare(String(b.created_at || "")));
+    project[t] = rows;
+  }
+  return project;
 }
 
-/** Patch a row in place, returning it. Throws if it isn't there. */
-async function patchIn(pid, collection, rowId, values) {
-  const project = await load(pid);
-  const row = project[collection].find((r) => r.id === rowId);
-  if (!row) throw new Error("Not found");
-  Object.assign(row, fields(values));
-  await save(project);
-  return row;
+async function fetchProject(id) {
+  const row = unwrap(
+    await supabase.from("projects").select(PROJECT_SELECT).eq("id", id).maybeSingle()
+  );
+  if (!row) throw new Error("Project not found");
+  return shapeProject(row);
 }
+
+/** Case-insensitive name match, mirroring find_by_name() in the old backend. */
+function findByName(items, name) {
+  const target = String(name ?? "").trim().toLowerCase();
+  return items.find((it) => String(it.name ?? "").trim().toLowerCase() === target) || null;
+}
+
+const num = (v) => Number(v ?? 0) || 0;
 
 export const api = {
   // ------------------------------------------------------------- projects
 
   listProjects: async () => {
-    const rows = await db.all();
-    return rows
-      .map((d) => ({
-        id: d.id,
-        company_name: d.company_name,
-        industry: d.industry ?? "",
-        fiscal_year: d.fiscal_year ?? "",
-        business_unit: d.business_unit ?? "",
-        updated_at: d.updated_at,
-        created_at: d.created_at,
-        objectives_count: (d.objectives || []).length,
-        measures_count: (d.measures || []).length,
-      }))
-      .sort((a, b) => String(b.updated_at || "").localeCompare(String(a.updated_at || "")));
+    // Counts come back as aggregates so the portal list doesn't pull every child row.
+    const rows = unwrap(
+      await supabase
+        .from("projects")
+        .select("*, objectives(count), measures(count)")
+        .order("updated_at", { ascending: false })
+    );
+    return rows.map((d) => ({
+      id: d.id,
+      company_name: d.company_name,
+      industry: d.industry ?? "",
+      fiscal_year: d.fiscal_year ?? "",
+      business_unit: d.business_unit ?? "",
+      updated_at: d.updated_at,
+      created_at: d.created_at,
+      objectives_count: d.objectives?.[0]?.count ?? 0,
+      measures_count: d.measures?.[0]?.count ?? 0,
+    }));
   },
 
   createProject: async (payload) => {
-    const { departments = [], ...rest } = payload || {};
-    const project = {
-      id: newId(),
-      company_name: rest.company_name,
-      industry: rest.industry || "",
-      fiscal_year: rest.fiscal_year || "",
-      business_unit: rest.business_unit || "",
-      vision: rest.vision || "",
-      mission: rest.mission || "",
-      strategic_themes: rest.strategic_themes || "",
-      prepared_by: rest.prepared_by || "",
-      prepared_date: rest.prepared_date || "",
-      perspectives: PERSPECTIVES,
-      perspective_weights: { ...DEFAULTS.perspective_weights },
-      performance_thresholds: { ...DEFAULTS.performance_thresholds },
-      departments: departments.map((name) => ({ id: newId(), name })),
-      objectives: [],
-      measures: [],
-      targets: [],
-      initiatives: [],
-      strategy_edges: [],
-      created_at: nowIso(),
-      updated_at: nowIso(),
-    };
-    await db.put(project);
-    return project;
+    const { departments = [], ...fields } = payload || {};
+    const project = unwrap(
+      await supabase.from("projects").insert(strip(fields)).select().single()
+    );
+    if (departments.length) {
+      unwrap(
+        await supabase
+          .from("departments")
+          .insert(departments.map((name) => ({ project_id: project.id, name })))
+      );
+    }
+    return fetchProject(project.id);
   },
 
-  getProject: (id) => load(id),
+  getProject: (id) => fetchProject(id),
 
   updateProject: async (id, payload) => {
-    const project = await load(id);
-    Object.assign(project, fields(payload, ["id", "created_at", ...COLLECTIONS]));
-    return save(project);
+    unwrap(await supabase.from("projects").update(strip(payload)).eq("id", id));
+    return fetchProject(id);
   },
 
   deleteProject: async (id) => {
-    await db.remove(id);
+    unwrap(await supabase.from("projects").delete().eq("id", id));
     return { ok: true };
   },
 
   duplicateProject: async (id) => {
-    const src = await load(id);
+    const src = await fetchProject(id);
     return api.importProject({ ...src, company_name: `${src.company_name} (Copy)` });
   },
 
   /**
-   * Insert a project from an export file or a duplicate.
+   * Insert a whole exported project.
    *
-   * Incoming rows carry their original ids, which would collide with the source
-   * project. Every id is regenerated and the references between collections are
-   * rewritten to match, so foreign keys, initiative links and strategy-map edges
-   * all still point at the right rows.
+   * Rows arrive carrying their original ids, which cannot be reused. Each level
+   * is inserted parent-first and the returned ids are remapped into the children,
+   * so foreign keys and the initiative/strategy-edge references stay intact.
    */
   importProject: async (doc) => {
-    const src = doc || {};
-    const remap = (rows) => {
-      const map = new Map();
-      const out = (rows || []).map((r) => {
-        const id = newId();
-        map.set(r.id, id);
-        return { ...r, id };
-      });
-      return [out, map];
+    const {
+      id: _id,
+      created_at: _c,
+      updated_at: _u,
+      perspectives: _p,
+      departments = [],
+      objectives = [],
+      measures = [],
+      targets = [],
+      initiatives = [],
+      strategy_edges = [],
+      ...fields
+    } = doc || {};
+
+    const project = unwrap(
+      await supabase.from("projects").insert(strip(fields)).select().single()
+    );
+    const pid = project.id;
+
+    const insertMapped = async (table, rows, remap = () => ({})) => {
+      if (!rows.length) return new Map();
+      const payload = rows.map((r) => ({
+        ...strip(r, ["id", "project_id", "created_at", "updated_at"]),
+        ...remap(r),
+        project_id: pid,
+      }));
+      const inserted = unwrap(await supabase.from(table).insert(payload).select());
+      // insert() preserves input order, so index alignment is safe here.
+      return new Map(rows.map((r, i) => [r.id, inserted[i].id]));
     };
 
-    const [departments, deptMap] = remap(src.departments);
-    const [objectives, objMap] = remap(src.objectives);
-    const [measures, measureMap] = remap(src.measures);
-    const [targets] = remap(src.targets);
-    const [initiatives] = remap(src.initiatives);
-    const [edges] = remap(src.strategy_edges);
+    const deptIds = await insertMapped("departments", departments);
+    const objIds = await insertMapped("objectives", objectives, (o) => ({
+      department_id: deptIds.get(o.department_id) ?? null,
+    }));
+    const measureIds = await insertMapped("measures", measures, (m) => ({
+      objective_id: objIds.get(m.objective_id) ?? null,
+    }));
+    await insertMapped(
+      "targets",
+      targets.filter((t) => measureIds.has(t.measure_id)),
+      (t) => ({ measure_id: measureIds.get(t.measure_id) })
+    );
+    await insertMapped("initiatives", initiatives, (i) => ({
+      measure_ids: (i.measure_ids || []).map((m) => measureIds.get(m)).filter(Boolean),
+    }));
+    await insertMapped(
+      "strategy_edges",
+      strategy_edges.filter((e) => objIds.has(e.source) && objIds.has(e.target)),
+      (e) => ({ source: objIds.get(e.source), target: objIds.get(e.target) })
+    );
 
-    for (const o of objectives) o.department_id = deptMap.get(o.department_id) ?? null;
-    for (const m of measures) m.objective_id = objMap.get(m.objective_id) ?? null;
-    for (const i of initiatives) {
-      i.measure_ids = (i.measure_ids || []).map((m) => measureMap.get(m)).filter(Boolean);
-    }
-
-    const project = {
-      ...src,
-      id: newId(),
-      perspectives: PERSPECTIVES,
-      perspective_weights: src.perspective_weights || { ...DEFAULTS.perspective_weights },
-      performance_thresholds: src.performance_thresholds || { ...DEFAULTS.performance_thresholds },
-      departments,
-      objectives,
-      measures,
-      // Rows whose parent didn't survive the import are dropped rather than orphaned.
-      targets: targets
-        .filter((t) => measureMap.has(t.measure_id))
-        .map((t) => ({ ...t, measure_id: measureMap.get(t.measure_id) })),
-      initiatives,
-      strategy_edges: edges
-        .filter((e) => objMap.has(e.source) && objMap.has(e.target))
-        .map((e) => ({ ...e, source: objMap.get(e.source), target: objMap.get(e.target) })),
-      created_at: nowIso(),
-      updated_at: nowIso(),
-    };
-    await db.put(project);
-    return project;
+    return fetchProject(pid);
   },
 
   // ---------------------------------------------------------- departments
 
-  addDepartment: (pid, name) => addTo(pid, "departments", { name }),
+  addDepartment: async (pid, name) =>
+    unwrap(
+      await supabase.from("departments").insert({ project_id: pid, name }).select().single()
+    ),
 
-  updateDepartment: (pid, did, name) => patchIn(pid, "departments", did, { name }),
+  updateDepartment: async (pid, did, name) =>
+    unwrap(
+      await supabase
+        .from("departments")
+        .update({ name })
+        .eq("id", did)
+        .eq("project_id", pid)
+        .select()
+        .single()
+    ),
 
-  // Objectives are unassigned rather than deleted along with the department.
+  // Objectives are unassigned rather than deleted — the FK is ON DELETE SET NULL,
+  // so the database handles what the old endpoint did in a follow-up loop.
   deleteDepartment: async (pid, did) => {
-    const project = await load(pid);
-    project.departments = project.departments.filter((d) => d.id !== did);
-    for (const o of project.objectives) if (o.department_id === did) o.department_id = null;
-    await save(project);
+    unwrap(await supabase.from("departments").delete().eq("id", did).eq("project_id", pid));
     return { ok: true };
   },
 
   // ----------------------------------------------------------- objectives
 
-  addObjective: (pid, payload) => addTo(pid, "objectives", payload),
+  addObjective: async (pid, payload) =>
+    unwrap(
+      await supabase
+        .from("objectives")
+        .insert({ ...strip(payload), project_id: pid })
+        .select()
+        .single()
+    ),
 
-  updateObjective: (pid, oid, payload) => patchIn(pid, "objectives", oid, payload),
+  updateObjective: async (pid, oid, payload) =>
+    unwrap(
+      await supabase
+        .from("objectives")
+        .update(strip(payload))
+        .eq("id", oid)
+        .eq("project_id", pid)
+        .select()
+        .single()
+    ),
 
-  // Cascades to the objective's measures, their targets, and any strategy edges
-  // touching it — the database used to do this, so it happens here now.
+  // Dependent measures and their targets go with it via ON DELETE CASCADE.
   deleteObjective: async (pid, oid) => {
-    const project = await load(pid);
-    const measureIds = project.measures.filter((m) => m.objective_id === oid).map((m) => m.id);
-    project.objectives = project.objectives.filter((o) => o.id !== oid);
-    project.measures = project.measures.filter((m) => m.objective_id !== oid);
-    project.targets = project.targets.filter((t) => !measureIds.includes(t.measure_id));
-    project.strategy_edges = project.strategy_edges.filter(
-      (e) => e.source !== oid && e.target !== oid
-    );
-    await save(project);
+    unwrap(await supabase.from("objectives").delete().eq("id", oid).eq("project_id", pid));
     return { ok: true };
   },
 
   // ------------------------------------------------------------- measures
 
-  addMeasure: (pid, payload) => addTo(pid, "measures", payload),
+  addMeasure: async (pid, payload) =>
+    unwrap(
+      await supabase
+        .from("measures")
+        .insert({ ...strip(payload), project_id: pid })
+        .select()
+        .single()
+    ),
 
-  updateMeasure: (pid, mid, payload) => patchIn(pid, "measures", mid, payload),
+  updateMeasure: async (pid, mid, payload) =>
+    unwrap(
+      await supabase
+        .from("measures")
+        .update(strip(payload))
+        .eq("id", mid)
+        .eq("project_id", pid)
+        .select()
+        .single()
+    ),
 
   deleteMeasure: async (pid, mid) => {
-    const project = await load(pid);
-    project.measures = project.measures.filter((m) => m.id !== mid);
-    project.targets = project.targets.filter((t) => t.measure_id !== mid);
-    for (const i of project.initiatives) {
-      i.measure_ids = (i.measure_ids || []).filter((x) => x !== mid);
-    }
-    await save(project);
+    unwrap(await supabase.from("measures").delete().eq("id", mid).eq("project_id", pid));
     return { ok: true };
   },
 
   // -------------------------------------------------------------- targets
 
-  addTarget: (pid, payload) => addTo(pid, "targets", payload),
+  addTarget: async (pid, payload) =>
+    unwrap(
+      await supabase
+        .from("targets")
+        .insert({ ...strip(payload), project_id: pid })
+        .select()
+        .single()
+    ),
 
-  updateTarget: (pid, tid, payload) => patchIn(pid, "targets", tid, payload),
+  updateTarget: async (pid, tid, payload) =>
+    unwrap(
+      await supabase
+        .from("targets")
+        .update(strip(payload))
+        .eq("id", tid)
+        .eq("project_id", pid)
+        .select()
+        .single()
+    ),
 
   deleteTarget: async (pid, tid) => {
-    const project = await load(pid);
-    project.targets = project.targets.filter((t) => t.id !== tid);
-    await save(project);
+    unwrap(await supabase.from("targets").delete().eq("id", tid).eq("project_id", pid));
     return { ok: true };
   },
 
   // ---------------------------------------------------------- initiatives
 
-  addInitiative: (pid, payload) => addTo(pid, "initiatives", payload),
+  addInitiative: async (pid, payload) =>
+    unwrap(
+      await supabase
+        .from("initiatives")
+        .insert({ ...strip(payload), project_id: pid })
+        .select()
+        .single()
+    ),
 
-  updateInitiative: (pid, iid, payload) => patchIn(pid, "initiatives", iid, payload),
+  updateInitiative: async (pid, iid, payload) =>
+    unwrap(
+      await supabase
+        .from("initiatives")
+        .update(strip(payload))
+        .eq("id", iid)
+        .eq("project_id", pid)
+        .select()
+        .single()
+    ),
 
   deleteInitiative: async (pid, iid) => {
-    const project = await load(pid);
-    project.initiatives = project.initiatives.filter((i) => i.id !== iid);
-    await save(project);
+    unwrap(await supabase.from("initiatives").delete().eq("id", iid).eq("project_id", pid));
     return { ok: true };
   },
 
   // ---------------------------------------------------------- bulk import
 
   /**
-   * Spreadsheet import, with the original add / update / replace modes.
+   * Spreadsheet import. Ported from the Python bulk_import endpoint, including
+   * its name-based matching and add / update / replace modes.
    *
-   * Levels run parent-first because each resolves parent *names* to the ids
-   * created by the level above — that is how a flat spreadsheet becomes a tree.
+   * Levels are processed parent-first because each one resolves parent names to
+   * the ids produced by the level above.
    */
   bulkImport: async (pid, payload) => {
-    const project = await load(pid);
     const mode = payload?.mode || "add";
     const stats = { created: 0, updated: 0 };
+    let doc = await fetchProject(pid);
 
-    if (mode === "replace") for (const c of COLLECTIONS) project[c] = [];
+    if (mode === "replace") {
+      // Departments and objectives cascade down to measures and targets.
+      for (const t of ["initiatives", "objectives", "departments"]) {
+        unwrap(await supabase.from(t).delete().eq("project_id", pid));
+      }
+      doc = await fetchProject(pid);
+    }
 
-    // -- departments (name is the only field, so never updated)
+    // -- departments: created only, never updated (name is the only column)
+    const newDepartments = [];
     for (const row of payload?.departments || []) {
       if (!row?.name) continue;
-      if (findByName(project.departments, row.name)) continue;
-      project.departments.push({ id: newId(), name: row.name });
-      stats.created += 1;
+      if (findByName(doc.departments, row.name) || findByName(newDepartments, row.name)) continue;
+      newDepartments.push({ project_id: pid, name: row.name });
+    }
+    if (newDepartments.length) {
+      unwrap(await supabase.from("departments").insert(newDepartments));
+      stats.created += newDepartments.length;
+      doc = await fetchProject(pid);
     }
 
     // -- objectives
@@ -319,7 +373,7 @@ export const api = {
       }
       let departmentId = row.department_id || null;
       if (!departmentId && row.department) {
-        departmentId = findByName(project.departments, row.department)?.id ?? null;
+        departmentId = findByName(doc.departments, row.department)?.id ?? null;
       }
       const values = {
         name: row.name,
@@ -333,22 +387,23 @@ export const api = {
         perspective_id: perspectiveId || "financial",
         weight: num(row.weight),
       };
-      const existing = findByName(project.objectives, row.name);
+      const existing = findByName(doc.objectives, row.name);
       if (existing && mode !== "add") {
-        Object.assign(existing, values);
+        unwrap(await supabase.from("objectives").update(values).eq("id", existing.id));
         stats.updated += 1;
       } else if (!existing) {
-        project.objectives.push({ id: newId(), ...values });
+        unwrap(await supabase.from("objectives").insert({ ...values, project_id: pid }));
         stats.created += 1;
       }
     }
+    doc = await fetchProject(pid);
 
     // -- measures
     for (const row of payload?.measures || []) {
       if (!row?.name) continue;
       let objectiveId = row.objective_id || null;
       if (!objectiveId && row.objective) {
-        objectiveId = findByName(project.objectives, row.objective)?.id ?? null;
+        objectiveId = findByName(doc.objectives, row.objective)?.id ?? null;
       }
       const values = {
         name: row.name,
@@ -363,22 +418,21 @@ export const api = {
         comments: row.comments ?? "",
         objective_id: objectiveId,
       };
-      const existing = findByName(project.measures, row.name);
+      const existing = findByName(doc.measures, row.name);
       if (existing && mode !== "add") {
-        Object.assign(existing, values);
+        unwrap(await supabase.from("measures").update(values).eq("id", existing.id));
         stats.updated += 1;
       } else if (!existing) {
-        project.measures.push({ id: newId(), ...values });
+        unwrap(await supabase.from("measures").insert({ ...values, project_id: pid }));
         stats.created += 1;
       }
     }
+    doc = await fetchProject(pid);
 
     // -- targets, matched on (measure, period)
     for (const row of payload?.targets || []) {
       let measureId = row.measure_id || null;
-      if (!measureId && row.measure) {
-        measureId = findByName(project.measures, row.measure)?.id ?? null;
-      }
+      if (!measureId && row.measure) measureId = findByName(doc.measures, row.measure)?.id ?? null;
       if (!measureId) continue;
       const period = row.period ?? "";
       const values = {
@@ -387,17 +441,16 @@ export const api = {
         target_value: num(row.target_value),
         actual_value: num(row.actual_value),
       };
-      const existing = project.targets.find(
-        (t) => t.measure_id === measureId && t.period === period
-      );
+      const existing = doc.targets.find((t) => t.measure_id === measureId && t.period === period);
       if (existing && mode !== "add") {
-        Object.assign(existing, values);
+        unwrap(await supabase.from("targets").update(values).eq("id", existing.id));
         stats.updated += 1;
       } else if (!existing) {
-        project.targets.push({ id: newId(), ...values });
+        unwrap(await supabase.from("targets").insert({ ...values, project_id: pid }));
         stats.created += 1;
       }
     }
+    doc = await fetchProject(pid);
 
     // -- initiatives
     for (const row of payload?.initiatives || []) {
@@ -408,7 +461,7 @@ export const api = {
           .split(",")
           .map((s) => s.trim())
           .filter(Boolean)
-          .map((nm) => findByName(project.measures, nm)?.id)
+          .map((nm) => findByName(doc.measures, nm)?.id)
           .filter(Boolean);
       }
       const values = {
@@ -425,73 +478,74 @@ export const api = {
         dependencies: row.dependencies ?? "",
         measure_ids: measureIds,
       };
-      const existing = findByName(project.initiatives, row.name);
+      const existing = findByName(doc.initiatives, row.name);
       if (existing && mode !== "add") {
-        Object.assign(existing, values);
+        unwrap(await supabase.from("initiatives").update(values).eq("id", existing.id));
         stats.updated += 1;
       } else if (!existing) {
-        project.initiatives.push({ id: newId(), ...values });
+        unwrap(await supabase.from("initiatives").insert({ ...values, project_id: pid }));
         stats.created += 1;
       }
     }
 
-    await save(project);
-    return { stats, project };
+    return { stats, project: await fetchProject(pid) };
   },
 
   /** Quick "update actuals" upload: sets actual_value per (measure, period). */
   updateActuals: async (pid, rows) => {
-    const project = await load(pid);
+    const doc = await fetchProject(pid);
     let updated = 0;
     let created = 0;
 
     for (const row of rows || []) {
       let measureId = row.measure_id || null;
-      if (!measureId && row.measure) {
-        measureId = findByName(project.measures, row.measure)?.id ?? null;
-      }
+      if (!measureId && row.measure) measureId = findByName(doc.measures, row.measure)?.id ?? null;
       if (!measureId) continue;
       const period = row.period ?? "";
       const actual = num(row.actual_value);
-      const existing = project.targets.find(
-        (t) => t.measure_id === measureId && t.period === period
-      );
+      const existing = doc.targets.find((t) => t.measure_id === measureId && t.period === period);
       if (existing) {
-        existing.actual_value = actual;
+        unwrap(await supabase.from("targets").update({ actual_value: actual }).eq("id", existing.id));
         updated += 1;
       } else {
-        project.targets.push({
-          id: newId(),
-          measure_id: measureId,
-          period,
-          target_value: 0,
-          actual_value: actual,
-        });
+        unwrap(
+          await supabase.from("targets").insert({
+            project_id: pid,
+            measure_id: measureId,
+            period,
+            target_value: 0,
+            actual_value: actual,
+          })
+        );
         created += 1;
       }
     }
 
-    await save(project);
-    return { updated, created, project };
+    return { updated, created, project: await fetchProject(pid) };
   },
 
   // ------------------------------------------------------- strategy edges
 
-  addStrategyEdge: (pid, source, target, label = "") =>
-    addTo(pid, "strategy_edges", { source, target, label }),
+  addStrategyEdge: async (pid, source, target, label = "") =>
+    unwrap(
+      await supabase
+        .from("strategy_edges")
+        .insert({ project_id: pid, source, target, label })
+        .select()
+        .single()
+    ),
 
   deleteStrategyEdge: async (pid, eid) => {
-    const project = await load(pid);
-    project.strategy_edges = project.strategy_edges.filter((e) => e.id !== eid);
-    await save(project);
+    unwrap(await supabase.from("strategy_edges").delete().eq("id", eid).eq("project_id", pid));
     return { ok: true };
   },
 
   // ------------------------------------------------------------------ AI
-  // The one call that leaves the browser. The scorecard snapshot is posted to a
-  // serverless function so the model provider key stays server-side.
+  // Stays server-side: the provider keys must not reach the browser.
   aiSummary: async (pid) => {
-    const project = await load(pid);
+    // The snapshot is posted rather than re-read server-side, so the function
+    // needs no database credentials of its own.
+    const project = await fetchProject(pid);
     return fetch("/api/ai-summary", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
