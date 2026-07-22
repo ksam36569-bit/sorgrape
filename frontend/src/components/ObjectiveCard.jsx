@@ -10,7 +10,7 @@ import { useScorecard } from "../context/ScorecardContext";
 import { api } from "../lib/api";
 import { toast } from "sonner";
 import {
-  objectiveScore, measureAchievement, measureWeightedScore, fmtPct,
+  objectiveScore, measureAchievement, measureWeightedScore, measureRating, fmtPct,
   objectiveMeasureWeightSum,
 } from "../lib/calculations";
 import { PERSPECTIVE_MAP } from "../lib/constants";
@@ -135,6 +135,7 @@ const ObjectiveCard = ({ objective, onEdit, onAddMeasure, onEditMeasure }) => {
               {measures.map((m) => {
                 const ach = measureAchievement(m, project.targets);
                 const contrib = measureWeightedScore(m, project.targets);
+                const rag = measureRating(m, project.targets, project.performance_thresholds);
                 return (
                   <div key={m.id} className="rounded-lg border border-border bg-card p-4" data-testid={`measure-row-${m.id}`}>
                     <div className="flex items-start justify-between gap-3">
@@ -154,6 +155,12 @@ const ObjectiveCard = ({ objective, onEdit, onAddMeasure, onEditMeasure }) => {
                         </div>
                       </div>
                       <div className="flex flex-col items-end gap-2">
+                        <PerformanceBadge
+                          pct={ach}
+                          rating={rag}
+                          thresholds={project.performance_thresholds}
+                          testId={`measure-rag-${m.id}`}
+                        />
                         <div className="text-right">
                           <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Weighted score</div>
                           <div className="font-serif text-lg tabular-nums">{fmtPct(contrib)}</div>

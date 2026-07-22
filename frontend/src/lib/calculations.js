@@ -3,11 +3,24 @@
 
 export const clampNumber = (n) => (Number.isFinite(n) ? n : 0);
 
-/** Achievement % = actual / target × 100 (guard divide-by-zero) */
-export const achievementPct = (actual, target) => {
+/**
+ * Achievement %.
+ *
+ * Direction matters: for a measure where lower is better (debt ratios, lead
+ * times, defect counts) the ratio inverts, otherwise beating the target by
+ * coming in *under* it would score as underperformance. Net Debt/EBITDA of 4.2
+ * against a 3.5 target is 83%, not 120%.
+ */
+export const achievementPct = (actual, target, direction = "higher") => {
   const a = Number(actual) || 0;
   const t = Number(target) || 0;
-  if (t === 0) return a === 0 ? 0 : 100; // if no target set, treat 0/0 as 0
+  // No target set, or a "≥ 0" style target: anything positive counts as met.
+  if (t === 0) return a > 0 ? 100 : 0;
+  if (direction === "lower") {
+    // Overshooting a lower-is-better target to zero or below is full marks.
+    if (a <= 0) return 100;
+    return (t / a) * 100;
+  }
   return (a / t) * 100;
 };
 
@@ -19,11 +32,64 @@ export const rating = (pct, thresholds = { red_max: 70, amber_max: 90 }) => {
   return "green";
 };
 
+/**
+ * Latest reported actual for a measure — the value RAG thresholds are read against.
+ * Periods sort lexically, which is right for FY25 / Q1-Q4 style labels.
+ */
+export const latestActual = (measure, targets) => {
+  const ms = targets
+    .filter((t) => t.measure_id === measure.id)
+    .sort((a, b) => String(a.period).localeCompare(String(b.period)));
+  return ms.length ? Number(ms[ms.length - 1].actual_value) || 0 : null;
+};
+
+/**
+ * RAG status for a measure.
+ *
+ * Two models, in priority order:
+ *
+ * 1. Explicit per-measure thresholds compared against the raw reported value.
+ *    This is how a real scorecard is defined — "green at 15% distribution,
+ *    amber at 5%" — and it is what the source workbook specifies.
+ * 2. Otherwise fall back to banding the achievement percentage, which is what
+ *    measures created in the app do when no thresholds are given.
+ *
+ * The two disagree more often than you would expect. 8% against a 20% target is
+ * 40% achievement, which the default band calls red, but a scorecard whose amber
+ * threshold is 5% calls it amber. When thresholds exist, they win.
+ */
+export const measureRating = (measure, targets, thresholds) => {
+  const green = measure?.green_threshold;
+  const amber = measure?.amber_threshold;
+  const hasThresholds = green !== null && green !== undefined && green !== "" &&
+                        amber !== null && amber !== undefined && amber !== "";
+
+  if (hasThresholds) {
+    const actual = latestActual(measure, targets);
+    if (actual === null) return "red";
+    const g = Number(green);
+    const a = Number(amber);
+    if (measure.direction === "lower") {
+      if (actual <= g) return "green";
+      if (actual <= a) return "amber";
+      return "red";
+    }
+    if (actual >= g) return "green";
+    if (actual >= a) return "amber";
+    return "red";
+  }
+
+  return rating(measureAchievement(measure, targets), thresholds);
+};
+
 /** Aggregate a measure across its targets — average of achievement % across periods (with targets) */
 export const measureAchievement = (measure, targets) => {
   const ms = targets.filter((t) => t.measure_id === measure.id);
   if (ms.length === 0) return 0;
-  const sum = ms.reduce((acc, t) => acc + achievementPct(t.actual_value, t.target_value), 0);
+  const sum = ms.reduce(
+    (acc, t) => acc + achievementPct(t.actual_value, t.target_value, measure.direction),
+    0
+  );
   return sum / ms.length;
 };
 

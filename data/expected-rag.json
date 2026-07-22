@@ -1,0 +1,98 @@
+[
+  {
+    "measure": "Total Group Turnover Growth",
+    "expected_rag": "red"
+  },
+  {
+    "measure": "Asia-Pacific Revenue Contribution",
+    "expected_rag": "red"
+  },
+  {
+    "measure": "EBITDA Margin",
+    "expected_rag": "amber"
+  },
+  {
+    "measure": "Prestige/Premium Wine Revenue Share",
+    "expected_rag": "amber"
+  },
+  {
+    "measure": "Return on Capital Employed",
+    "expected_rag": "amber"
+  },
+  {
+    "measure": "Net Debt / EBITDA Ratio",
+    "expected_rag": "amber"
+  },
+  {
+    "measure": "Distribution Points in Asia-Pacific",
+    "expected_rag": "amber"
+  },
+  {
+    "measure": "Brand Awareness in Key Asian Markets",
+    "expected_rag": "amber"
+  },
+  {
+    "measure": "Distributor/Trade Partner Satisfaction",
+    "expected_rag": "amber"
+  },
+  {
+    "measure": "Critic Ratings & Awards",
+    "expected_rag": "amber"
+  },
+  {
+    "measure": "Wine Tourism Visitor Growth",
+    "expected_rag": "amber"
+  },
+  {
+    "measure": "Visitor Nationality Diversity",
+    "expected_rag": "green"
+  },
+  {
+    "measure": "STEP Transformation Project Portfolio",
+    "expected_rag": "amber"
+  },
+  {
+    "measure": "AI/Digital Innovation Pilot Testing",
+    "expected_rag": "amber"
+  },
+  {
+    "measure": "Order-to-Delivery Lead Time to Asia Markets",
+    "expected_rag": "amber"
+  },
+  {
+    "measure": "Waste Valorisation Rate",
+    "expected_rag": "green"
+  },
+  {
+    "measure": "Grape Harvest Volume Stability",
+    "expected_rag": "red"
+  },
+  {
+    "measure": "Renewable Electricity Usage (Portugal Operations)",
+    "expected_rag": "amber"
+  },
+  {
+    "measure": "Wine Academy / WSET Certifications",
+    "expected_rag": "amber"
+  },
+  {
+    "measure": "WiLearn Platform Adoption",
+    "expected_rag": "red"
+  },
+  {
+    "measure": "Leadership Programme Participation",
+    "expected_rag": "amber"
+  },
+  {
+    "measure": "Employee Engagement Score",
+    "expected_rag": "amber"
+  },
+  {
+    "measure": "New Employee Additions",
+    "expected_rag": "amber"
+  },
+  {
+    "measure": "Graduate/Early-Career Engagement",
+    "expected_rag": "amber"
+  }
+]

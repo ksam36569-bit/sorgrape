@@ -92,3 +92,4 @@ credentials.json
 
 # .env.example carries placeholders only and must stay tracked.
 !.env.example
+!data/*.json

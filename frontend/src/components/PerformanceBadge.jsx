@@ -8,8 +8,10 @@ const LABELS = {
   green: "On Target",
 };
 
-const PerformanceBadge = ({ pct, thresholds, className, showLabel = true, testId }) => {
-  const r = ratingFn(pct, thresholds);
+const PerformanceBadge = ({ pct, thresholds, rating, className, showLabel = true, testId }) => {
+  // An explicit rating wins: threshold-based measure statuses are not derivable
+  // from the percentage alone.
+  const r = rating || ratingFn(pct, thresholds);
   const bg = r === "red" ? "bg-rag-red" : r === "amber" ? "bg-rag-amber" : "bg-rag-green";
   return (
     <span

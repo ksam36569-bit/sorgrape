@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, Suspense, lazy } from "react";
 import { useNavigate } from "react-router-dom";
 import { useScorecard } from "../context/ScorecardContext";
 import Sidebar from "../components/Sidebar";
@@ -11,11 +11,15 @@ import AiSummaryDialog from "../components/AiSummaryDialog";
 import ObjectiveCard from "../components/ObjectiveCard";
 import PerformanceBadge from "../components/PerformanceBadge";
 import FilterBar, { applyObjectiveFilter } from "../components/FilterBar";
-import DashboardChartsView from "./DashboardChartsView";
-import StrategyMapView from "./StrategyMapView";
-import AlignmentView from "./AlignmentView";
-import InitiativesView from "./InitiativesView";
-import ReportsView from "./ReportsView";
+
+// Only one section renders at a time, so each is its own chunk. Dashboard pulls
+// in recharts, Strategy Map pulls in reactflow, and Reports pulls in the export
+// libraries — none of which should load for someone just reading the scorecard.
+const DashboardChartsView = lazy(() => import("./DashboardChartsView"));
+const StrategyMapView = lazy(() => import("./StrategyMapView"));
+const AlignmentView = lazy(() => import("./AlignmentView"));
+const InitiativesView = lazy(() => import("./InitiativesView"));
+const ReportsView = lazy(() => import("./ReportsView"));
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -33,6 +37,14 @@ import { api } from "../lib/api";
 import { motion } from "framer-motion";
 
 const DEFAULT_FILTERS = { perspective_id: null, department_id: null, owner: null, quarter: null, year: null, status: null, priority: null, risk: null };
+
+function SectionFallback() {
+  return (
+    <div className="flex items-center justify-center py-24" role="status" aria-label="Loading section">
+      <div className="h-7 w-7 rounded-full border-2 border-muted border-t-primary animate-spin" />
+    </div>
+  );
+}
 
 const ScorecardPage = () => {
   const { project, projects, loadProject, refreshProject, currentProjectId } = useScorecard();
@@ -208,16 +220,18 @@ const ScorecardPage = () => {
               />
             )}
 
-            {section === "dashboard" && (
-              <DashboardChartsView filters={filters} setFilters={setFilters} />
-            )}
+            <Suspense fallback={<SectionFallback />}>
+              {section === "dashboard" && (
+                <DashboardChartsView filters={filters} setFilters={setFilters} />
+              )}
 
-            {section === "strategy-map" && <StrategyMapView />}
-            {section === "alignment" && <AlignmentView />}
-            {section === "initiatives" && (
-              <InitiativesView filters={filters} setFilters={setFilters} />
-            )}
-            {section === "reports" && <ReportsView />}
+              {section === "strategy-map" && <StrategyMapView />}
+              {section === "alignment" && <AlignmentView />}
+              {section === "initiatives" && (
+                <InitiativesView filters={filters} setFilters={setFilters} />
+              )}
+              {section === "reports" && <ReportsView />}
+            </Suspense>
           </div>
         </main>
       </div>

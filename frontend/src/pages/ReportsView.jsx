@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useScorecard } from "../context/ScorecardContext";
 import { PERSPECTIVES, PERSPECTIVE_MAP } from "../lib/constants";
 import {
-  overallScore, perspectiveScore, objectiveScore, measureAchievement, fmtPct, rating,
+  overallScore, perspectiveScore, objectiveScore, measureAchievement, measureRating, fmtPct, rating,
 } from "../lib/calculations";
 import { exportCSV, exportExcel, exportJSON, exportPDF, printReport, parseJSONFile } from "../lib/reports";
 import { api } from "../lib/api";
@@ -57,6 +57,16 @@ const ReportsView = () => {
     }
   };
 
+  // Export libraries load on demand now, so a click can fail on a flaky network
+  // or a stale chunk after a redeploy. Without this the rejection is silent.
+  const runExport = (label, fn) => async () => {
+    try {
+      await fn();
+    } catch (e) {
+      toast.error(`${label} failed — check your connection and try again`);
+    }
+  };
+
   const doPdf = async () => {
     setBusyPdf(true);
     try {
@@ -81,17 +91,17 @@ const ReportsView = () => {
           <Button onClick={doPdf} disabled={busyPdf} data-testid="export-pdf-btn">
             <FileText className="h-4 w-4 mr-1.5" /> {busyPdf ? "Preparing PDF…" : "Export PDF"}
           </Button>
-          <Button variant="outline" onClick={() => exportExcel(project)} data-testid="export-excel-btn">
+          <Button variant="outline" onClick={runExport("Excel export", () => exportExcel(project))} data-testid="export-excel-btn">
             <FileSpreadsheet className="h-4 w-4 mr-1.5" /> Export Excel
           </Button>
-          <Button variant="outline" onClick={() => exportCSV(project)} data-testid="export-csv-btn">
+          <Button variant="outline" onClick={runExport("CSV export", () => exportCSV(project))} data-testid="export-csv-btn">
             <TableIcon className="h-4 w-4 mr-1.5" /> Export CSV
           </Button>
           <Button variant="outline" onClick={() => printReport()} data-testid="print-btn">
             <Printer className="h-4 w-4 mr-1.5" /> Print
           </Button>
           <div className="mx-2 h-8 border-l border-border" />
-          <Button variant="outline" onClick={() => exportJSON(project)} data-testid={DASH.exportJson}>
+          <Button variant="outline" onClick={runExport("JSON export", () => exportJSON(project))} data-testid={DASH.exportJson}>
             <FileJson className="h-4 w-4 mr-1.5" /> Export JSON (backup)
           </Button>
           <input ref={jsonInputRef} type="file" accept=".json" hidden onChange={(e) => onImportJson(e.target.files?.[0])} />
@@ -110,7 +120,7 @@ const ReportsView = () => {
             <Button variant="outline" onClick={() => actualsInputRef.current?.click()} data-testid={DASH.updateActuals}>
               <Wand2 className="h-4 w-4 mr-1.5" /> Update actuals
             </Button>
-            <Button variant="ghost" onClick={downloadActualsTemplate}>
+            <Button variant="ghost" onClick={runExport("Template download", downloadActualsTemplate)}>
               <FileDown className="h-4 w-4 mr-1.5" /> Download actuals template
             </Button>
           </div>
@@ -197,7 +207,7 @@ const ReportsView = () => {
                       <tbody>
                         {measures.map((m) => {
                           const pct = measureAchievement(m, project.targets);
-                          const rag = rating(pct, project.performance_thresholds);
+                          const rag = measureRating(m, project.targets, project.performance_thresholds);
                           return (
                             <tr key={m.id} className="border-t border-border">
                               <td className="py-1.5 pr-2">{m.name}</td>

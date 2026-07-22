@@ -14,7 +14,8 @@ import { objectiveMeasureWeightSum } from "../lib/calculations";
 
 const empty = {
   name: "", description: "", unit: "%", weight: 0, baseline: 0, stretch_target: 0,
-  time_period: "Annual", owner: "", data_source: "", comments: "", objective_id: "",
+  time_period: "Annual", direction: "higher", green_threshold: "", amber_threshold: "",
+  owner: "", data_source: "", comments: "", objective_id: "",
 };
 
 const MeasureDialog = ({ open, onOpenChange, measure, defaultObjective }) => {
@@ -109,6 +110,31 @@ const MeasureDialog = ({ open, onOpenChange, measure, defaultObjective }) => {
                 {UNIT_OPTIONS.map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}
               </SelectContent>
             </Select>
+          </F>
+          <F label="Direction">
+            <Select value={form.direction || "higher"} onValueChange={(v) => set("direction", v)}>
+              <SelectTrigger data-testid="measure-direction"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="higher">Higher is better</SelectItem>
+                <SelectItem value="lower">Lower is better</SelectItem>
+              </SelectContent>
+            </Select>
+          </F>
+          <F label="Green at (optional)">
+            <Input
+              value={form.green_threshold ?? ""}
+              onChange={(e) => set("green_threshold", e.target.value)}
+              placeholder="e.g. 15"
+              data-testid="measure-green-threshold"
+            />
+          </F>
+          <F label="Amber at (optional)">
+            <Input
+              value={form.amber_threshold ?? ""}
+              onChange={(e) => set("amber_threshold", e.target.value)}
+              placeholder="e.g. 5"
+              data-testid="measure-amber-threshold"
+            />
           </F>
           <F label="Time Period">
             <Select value={form.time_period} onValueChange={(v) => set("time_period", v)}>

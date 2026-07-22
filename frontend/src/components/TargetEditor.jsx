@@ -93,7 +93,7 @@ const TargetEditor = ({ measure }) => {
 
       <div className="space-y-2">
         {targets.map((t) => {
-          const pct = achievementPct(t.actual_value, t.target_value);
+          const pct = achievementPct(t.actual_value, t.target_value, measure?.direction);
           return (
             <div key={t.id} className="grid grid-cols-12 gap-2 items-center" data-testid={`target-row-${t.id}`}>
               <div className="col-span-3 text-sm font-medium">{t.period}</div>

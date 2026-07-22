@@ -84,6 +84,16 @@ const BulkImportDialog = ({ open, onOpenChange }) => {
   const [mapping, setMapping] = useState({}); // sheetName -> entity | 'ignore'
   const [busy, setBusy] = useState(false);
 
+  // SheetJS loads on demand, so a template click can fail on a flaky network or
+  // a stale chunk after a redeploy. Surface that instead of failing silently.
+  const runTemplate = (label, fn) => async () => {
+    try {
+      await fn();
+    } catch (e) {
+      toast.error(`${label} failed — check your connection and try again`);
+    }
+  };
+
   const reset = () => {
     setStep("upload"); setSheets(null); setMapping({}); setMode("add");
   };
@@ -187,10 +197,10 @@ const BulkImportDialog = ({ open, onOpenChange }) => {
             <div className="flex items-center justify-between gap-4 text-sm">
               <div className="text-muted-foreground">Need the template?</div>
               <div className="flex gap-2">
-                <Button variant="outline" onClick={downloadTemplate} data-testid={IMPORT.downloadTemplate}>
+                <Button variant="outline" onClick={runTemplate("Template download", downloadTemplate)} data-testid={IMPORT.downloadTemplate}>
                   <FileDown className="h-4 w-4 mr-1.5" /> Full template
                 </Button>
-                <Button variant="outline" onClick={downloadActualsTemplate}>
+                <Button variant="outline" onClick={runTemplate("Template download", downloadActualsTemplate)}>
                   <FileDown className="h-4 w-4 mr-1.5" /> Actuals template
                 </Button>
               </div>

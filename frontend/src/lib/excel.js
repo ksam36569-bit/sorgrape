@@ -1,7 +1,11 @@
 // Excel bulk import/export utilities using SheetJS
-import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import { PERSPECTIVES } from "./constants";
+
+// SheetJS is around 400 kB and is only needed when someone actually touches a
+// spreadsheet, so it is fetched on demand rather than on first paint. The
+// browser caches the chunk, so this costs one short delay per session.
+const loadXLSX = () => import("xlsx");
 
 const HEADER_ROWS = {
   Departments: [{ name: "Sales & Distribution" }],
@@ -67,7 +71,7 @@ const HEADER_LABELS = {
   ],
   Measures: [
     "name", "objective", "unit", "weight", "baseline", "stretch_target",
-    "time_period", "owner", "data_source", "description", "comments",
+    "time_period", "direction", "owner", "data_source", "description", "comments",
   ],
   Targets: ["measure", "period", "target_value", "actual_value"],
   Initiatives: [
@@ -76,7 +80,8 @@ const HEADER_LABELS = {
   ],
 };
 
-export const downloadTemplate = () => {
+export const downloadTemplate = async () => {
+  const XLSX = await loadXLSX();
   const wb = XLSX.utils.book_new();
   for (const sheet of ["Departments", "Objectives", "Measures", "Targets", "Initiatives"]) {
     const headers = HEADER_LABELS[sheet];
@@ -89,7 +94,8 @@ export const downloadTemplate = () => {
   saveAs(new Blob([buf], { type: "application/octet-stream" }), "sogrape-scorecard-template.xlsx");
 };
 
-export const downloadActualsTemplate = () => {
+export const downloadActualsTemplate = async () => {
+  const XLSX = await loadXLSX();
   const wb = XLSX.utils.book_new();
   const headers = ["measure", "period", "actual_value"];
   const example = [["Annual Revenue", "FY26", 118000000]];
@@ -112,6 +118,7 @@ const norm = (s) => (s || "").toString().trim().toLowerCase();
 const KNOWN_SHEETS = ["Departments", "Objectives", "Measures", "Targets", "Initiatives"];
 
 export const parseWorkbook = async (file) => {
+  const XLSX = await loadXLSX();
   const buf = await file.arrayBuffer();
   const wb = XLSX.read(buf, { type: "array" });
   const sheets = {};
@@ -147,6 +154,8 @@ export const normaliseRow = (entity, row) => {
     if (!["Annual", "Quarterly"].includes(row.time_period)) {
       out.time_period = norm(row.time_period).startsWith("q") ? "Quarterly" : "Annual";
     }
+    // Accept "Lower Better", "lower", "lower is better" etc; anything else means higher.
+    out.direction = norm(row.direction).startsWith("lower") ? "lower" : "higher";
   } else if (entity === "Targets") {
     out.target_value = cleanNumber(row.target_value);
     out.actual_value = cleanNumber(row.actual_value);

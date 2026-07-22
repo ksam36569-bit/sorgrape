@@ -1,13 +1,19 @@
 // Export utilities: CSV / Excel / PDF / JSON / Print
-import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
-import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
 import { PERSPECTIVES, PERSPECTIVE_MAP } from "./constants";
 import {
   overallScore, perspectiveScore, objectiveScore, measureAchievement,
-  measureWeightedScore, rating,
+  measureWeightedScore, measureRating, rating,
 } from "./calculations";
+
+// xlsx, jspdf and html2canvas together are roughly half the bundle and none of
+// them are needed until the user clicks an export button, so each is loaded on
+// demand. JSON export and Print stay synchronous — they need no library.
+const loadXLSX = () => import("xlsx");
+const loadPDFDeps = async () => {
+  const [pdfMod, h2cMod] = await Promise.all([import("jspdf"), import("html2canvas")]);
+  return { jsPDF: pdfMod.jsPDF || pdfMod.default, html2canvas: h2cMod.default || h2cMod };
+};
 
 const stamp = () => new Date().toISOString().slice(0, 10);
 
@@ -39,7 +45,7 @@ export const buildFlatRows = (project) => {
           ObjectiveWeight: o.weight, ObjectiveScore: oScore.toFixed(1),
           Measure: m.name, MeasureWeight: m.weight, Unit: m.unit, TimePeriod: m.time_period,
           Baseline: m.baseline, Stretch: m.stretch_target,
-          Achievement: mPct.toFixed(1), WeightedScore: ws.toFixed(1), Rating: rating(mPct, project.performance_thresholds),
+          Achievement: mPct.toFixed(1), WeightedScore: ws.toFixed(1), Rating: measureRating(m, project.targets, project.performance_thresholds),
           Period: "", Target: "", Actual: "",
         });
       } else {
@@ -50,7 +56,7 @@ export const buildFlatRows = (project) => {
             ObjectiveWeight: o.weight, ObjectiveScore: oScore.toFixed(1),
             Measure: m.name, MeasureWeight: m.weight, Unit: m.unit, TimePeriod: m.time_period,
             Baseline: m.baseline, Stretch: m.stretch_target,
-            Achievement: mPct.toFixed(1), WeightedScore: ws.toFixed(1), Rating: rating(mPct, project.performance_thresholds),
+            Achievement: mPct.toFixed(1), WeightedScore: ws.toFixed(1), Rating: measureRating(m, project.targets, project.performance_thresholds),
             Period: t.period, Target: t.target_value, Actual: t.actual_value,
           });
         }
@@ -60,7 +66,8 @@ export const buildFlatRows = (project) => {
   return rows;
 };
 
-export const exportCSV = (project) => {
+export const exportCSV = async (project) => {
+  const XLSX = await loadXLSX();
   const rows = buildFlatRows(project);
   const ws = XLSX.utils.json_to_sheet(rows);
   const csv = XLSX.utils.sheet_to_csv(ws);
@@ -68,7 +75,8 @@ export const exportCSV = (project) => {
   saveAs(blob, `sogrape-scorecard-${stamp()}.csv`);
 };
 
-export const exportExcel = (project) => {
+export const exportExcel = async (project) => {
+  const XLSX = await loadXLSX();
   const wb = XLSX.utils.book_new();
   // Overview
   const overview = [
@@ -126,6 +134,7 @@ export const printReport = () => {
 export const exportPDF = async (elementId, filename = `sogrape-scorecard-${stamp()}.pdf`) => {
   const el = document.getElementById(elementId);
   if (!el) throw new Error("Element not found");
+  const { jsPDF, html2canvas } = await loadPDFDeps();
   const canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: getComputedStyle(document.body).backgroundColor });
   const img = canvas.toDataURL("image/jpeg", 0.92);
   const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
