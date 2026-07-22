@@ -2,7 +2,7 @@ import React, { useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import {
   RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
-  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend,
+  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip,
   LineChart, Line, PieChart, Pie, Cell,
   RadialBarChart, RadialBar,
 } from "recharts";
@@ -133,17 +133,34 @@ const DashboardChartsView = ({ filters, setFilters }) => {
         {/* Pie: perspective weights */}
         <Card className="p-5">
           <ChartHead title="Weight allocation" subtitle="How each perspective is weighted" />
-          <div className="h-64">
+          {/*
+            The legend is plain HTML below the chart rather than a <Legend> inside
+            the SVG. Recharts measures an in-SVG legend and subtracts it from the
+            plot area; with four wrapped entries that left a 14x14 drawing surface
+            in a 247x256 card, so the pie rendered as a sliver.
+          */}
+          <div className="h-44">
             <ResponsiveContainer>
               <PieChart>
-                <Pie data={weightPie} dataKey="value" nameKey="name" innerRadius={45} outerRadius={80} paddingAngle={2}>
+                <Pie data={weightPie} dataKey="value" nameKey="name" innerRadius={40} outerRadius={70} paddingAngle={2}>
                   {weightPie.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
                 </Pie>
-                <Legend wrapperStyle={{ fontSize: 11, color: textColor }} />
-                <Tooltip contentStyle={{ background: theme === "dark" ? "#24191A" : "#fff", border: `1px solid ${gridStroke}`, borderRadius: 8 }} />
+                <Tooltip
+                  formatter={(v, n) => [`${v}%`, n]}
+                  contentStyle={{ background: theme === "dark" ? "#24191A" : "#fff", border: `1px solid ${gridStroke}`, borderRadius: 8 }}
+                />
               </PieChart>
             </ResponsiveContainer>
           </div>
+          <ul className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+            {weightPie.map((entry) => (
+              <li key={entry.name} className="flex items-center gap-1.5 min-w-0">
+                <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: entry.fill }} aria-hidden />
+                <span className="truncate">{entry.name}</span>
+                <span className="ml-auto tabular-nums text-foreground">{entry.value}%</span>
+              </li>
+            ))}
+          </ul>
         </Card>
 
         {/* Bar: departments */}
