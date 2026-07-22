@@ -9,7 +9,7 @@ import { useScorecard } from "../context/ScorecardContext";
 import { PERSPECTIVES, PERSPECTIVE_MAP } from "../lib/constants";
 import { api } from "../lib/api";
 import { toast } from "sonner";
-import { objectiveScore, rating, fmtPct } from "../lib/calculations";
+import { objectiveScore, objectiveRating, rating, fmtPct } from "../lib/calculations";
 import { useTheme } from "../context/ThemeProvider";
 import { Info, Wand2 } from "lucide-react";
 
@@ -57,7 +57,7 @@ const StrategyMapView = () => {
     for (const [pid, list] of Object.entries(buckets)) {
       list.forEach((o, i) => {
         const score = objectiveScore(o, project.measures, project.targets);
-        const rag = rating(score, project.performance_thresholds);
+        const rag = objectiveRating(o, project.measures, project.targets, project.performance_thresholds);
         nodes.push({
           id: o.id,
           type: "objective",

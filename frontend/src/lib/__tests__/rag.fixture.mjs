@@ -7,7 +7,7 @@
 // will catch anyone reverting measureRating() back to percentage banding.
 
 import { readFileSync } from "fs";
-import { measureRating, measureAchievement, rating, perspectiveScore, overallScore } from "../calculations.js";
+import { measureRating, objectiveRating, perspectiveRating, measureAchievement, rating, objectiveScore } from "../calculations.js";
 
 const project  = JSON.parse(readFileSync("data/sogrape-fy25.json", "utf8"));
 const expected = JSON.parse(readFileSync("data/expected-rag.json", "utf8"));
@@ -45,6 +45,31 @@ for (const [pid, label] of Object.entries(names)) {
   console.log(`  ${label.padEnd(20)} G/A/R app=${got.join("/")}  sheet=${want.join("/")}  ${ok?"match":"MISMATCH"}`);
 }
 
+
+// --- a parent must never look healthier than its worst child ---------------
+console.log("\n--- rollup consistency ---");
+const ORDER = { green: 0, amber: 1, red: 2 };
+let rollupFail = 0;
+for (const o of project.objectives) {
+  const kids = project.measures.filter((m) => m.objective_id === o.id)
+    .map((m) => measureRating(m, project.targets, project.performance_thresholds));
+  const got = objectiveRating(o, project.measures, project.targets, project.performance_thresholds);
+  const worst = kids.reduce((w, r) => (ORDER[r] > ORDER[w] ? r : w), "green");
+  const band = rating(objectiveScore(o, project.measures, project.targets), project.performance_thresholds);
+  if (got !== worst) { rollupFail++; console.log(`  MISMATCH ${o.name}: ${got} vs worst child ${worst}`); }
+  if (band !== worst) console.log(`  (band would have said ${band}, measures say ${worst}) ${o.name.slice(0,44)}`);
+}
+for (const pid of ["financial","customer","internal","learning"]) {
+  const objs = project.objectives.filter((o) => o.perspective_id === pid);
+  const worst = objs.map((o) => objectiveRating(o, project.measures, project.targets, project.performance_thresholds))
+    .reduce((w, r) => (ORDER[r] > ORDER[w] ? r : w), "green");
+  const got = perspectiveRating(pid, project.objectives, project.measures, project.targets, project.performance_thresholds);
+  if (got !== worst) { rollupFail++; console.log(`  MISMATCH perspective ${pid}: ${got} vs ${worst}`); }
+}
+console.log(rollupFail === 0
+  ? "  every objective and perspective matches its worst child"
+  : `  ${rollupFail} rollup mismatches`);
+
 console.log(`\n${pass}/${project.measures.length} RAG statuses match the workbook, ${fail} mismatched`);
 console.log(`${wouldHaveBeenWrong} would have been wrong under the old achievement-band rule`);
-process.exit(fail || summaryFail ? 1 : 0);
+process.exit(fail || summaryFail || rollupFail ? 1 : 0);

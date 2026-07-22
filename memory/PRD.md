@@ -125,3 +125,26 @@ package-lock.json.
   recharts, reactflow, xlsx and jspdf are all eagerly imported.
 - Supabase (or any hosted Postgres) if shared multi-user state is wanted back.
   The schema for it is in git history at commit 6c8b239.
+
+## RAG model (2026-07-22)
+
+The source workbook is authoritative for status, and it defines RAG per measure
+as green/amber thresholds read against the raw reported value — not as a band on
+achievement percentage. Those two rules disagreed on 7 of 24 measures.
+
+- `measureRating()` prefers explicit thresholds, falling back to percentage
+  banding when a measure has none, so scorecards built in the app are unaffected.
+- `objectiveRating()` / `perspectiveRating()` take the worst status among their
+  children. A weighted average let a strong measure mask a failing one: Optimise
+  Supply Chain scored 91.5% and showed green while a measure under it was amber.
+  Weights still drive the numeric score; they no longer decide the colour.
+- Measures carry a `direction`. Where lower is better (Net Debt/EBITDA, lead
+  time) the achievement ratio inverts — 4.2 against a 3.5 target is 83%, not 120%.
+
+`frontend/src/lib/__tests__/rag.fixture.mjs` pins all 24 statuses, the
+per-perspective counts, and the rollup invariant to the workbook.
+
+**Weights are placeholders.** The workbook specifies none, so objectives are
+weighted evenly within a perspective and measures evenly within an objective.
+They affect the numeric scores only, never a status colour. Replace them when
+the real weights exist.

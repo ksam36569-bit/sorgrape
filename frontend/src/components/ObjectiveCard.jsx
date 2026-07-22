@@ -10,7 +10,7 @@ import { useScorecard } from "../context/ScorecardContext";
 import { api } from "../lib/api";
 import { toast } from "sonner";
 import {
-  objectiveScore, measureAchievement, measureWeightedScore, measureRating, fmtPct,
+  objectiveScore, objectiveRating, measureAchievement, measureWeightedScore, measureRating, fmtPct,
   objectiveMeasureWeightSum,
 } from "../lib/calculations";
 import { PERSPECTIVE_MAP } from "../lib/constants";
@@ -98,7 +98,12 @@ const ObjectiveCard = ({ objective, onEdit, onAddMeasure, onEditMeasure }) => {
             </div>
           </div>
           <div className="flex flex-col items-end gap-2">
-            <PerformanceBadge pct={score} thresholds={project.performance_thresholds} testId={`objective-score-${objective.id}`} />
+            <PerformanceBadge
+              pct={score}
+              rating={objectiveRating(objective, project.measures, project.targets, project.performance_thresholds)}
+              thresholds={project.performance_thresholds}
+              testId={`objective-score-${objective.id}`}
+            />
             <div className="flex items-center gap-1">
               <Button size="icon" variant="ghost" onClick={() => onEdit(objective)} data-testid={`objective-edit-${objective.id}`}>
                 <Pencil className="h-3.5 w-3.5" />

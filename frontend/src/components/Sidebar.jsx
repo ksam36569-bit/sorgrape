@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { PERSPECTIVES } from "../lib/constants";
 import { useScorecard } from "../context/ScorecardContext";
 import {
-  overallScore, perspectiveScore, rating, fmtPct,
+  overallScore, perspectiveScore, perspectiveRating, measureRating, rating, fmtPct,
 } from "../lib/calculations";
 import { cn } from "@/lib/utils";
 import { ChevronDown, ChevronRight, Search, Grape, Users, ListTree, Trash2, Pencil, Plus } from "lucide-react";
@@ -35,6 +35,11 @@ const Sidebar = ({ view, filters, setFilters, onAddDepartment, onEditDepartment,
   if (!project) return null;
 
   const overall = overallScore(project);
+  // Headline dot follows the worst perspective, so the top-level light can never
+  // be greener than something underneath it.
+  const overallRag = PERSPECTIVES
+    .map((p) => perspectiveRating(p.id, project.objectives, project.measures, project.targets, project.performance_thresholds))
+    .reduce((worst, r) => (r === "red" || worst === "red" ? "red" : r === "amber" || worst === "amber" ? "amber" : "green"), "green");
 
   return (
     <aside
@@ -60,7 +65,7 @@ const Sidebar = ({ view, filters, setFilters, onAddDepartment, onEditDepartment,
             <div className="font-serif text-3xl text-sogrape-gold" data-testid={DASH.overallScore}>
               {fmtPct(overall)}
             </div>
-            <RagDot pct={overall} thresholds={project.performance_thresholds} />
+            <RagDot pct={overall} rating={overallRag} thresholds={project.performance_thresholds} />
           </div>
         </div>
       </div>
@@ -92,6 +97,7 @@ const Sidebar = ({ view, filters, setFilters, onAddDepartment, onEditDepartment,
                   label={p.short}
                   hint={`${cnt} · ${fmtPct(ps)}`}
                   dotPct={ps}
+                  dotRating={perspectiveRating(p.id, project.objectives, project.measures, project.targets, project.performance_thresholds)}
                   thresholds={project.performance_thresholds}
                   testId={`sidebar-perspective-${p.id}`}
                 />
@@ -180,7 +186,7 @@ const Sidebar = ({ view, filters, setFilters, onAddDepartment, onEditDepartment,
                   className="w-full text-left px-3 py-2 rounded-md hover:bg-white/[0.05] transition-colors flex items-center gap-2"
                   data-testid={`sidebar-kpi-${m.id}`}
                 >
-                  <RagDot pct={avgPct} thresholds={project.performance_thresholds} />
+                  <RagDot pct={avgPct} rating={measureRating(m, project.targets, project.performance_thresholds)} thresholds={project.performance_thresholds} />
                   <div className="flex-1 min-w-0">
                     <div className="text-xs font-medium truncate">{m.name}</div>
                     <div className="text-[10px] uppercase tracking-wider text-white/50 truncate">
@@ -216,7 +222,7 @@ const SectionHead = ({ label, expanded, onClick, icon, action }) => (
   </div>
 );
 
-const NavItem = ({ active, onClick, label, hint, dotPct, thresholds, className, testId }) => (
+const NavItem = ({ active, onClick, label, hint, dotPct, dotRating, thresholds, className, testId }) => (
   <button
     onClick={onClick}
     data-testid={testId}
@@ -226,14 +232,14 @@ const NavItem = ({ active, onClick, label, hint, dotPct, thresholds, className, 
       className
     )}
   >
-    {typeof dotPct === "number" && <RagDot pct={dotPct} thresholds={thresholds} />}
+    {typeof dotPct === "number" && <RagDot pct={dotPct} rating={dotRating} thresholds={thresholds} />}
     <span className="flex-1 truncate">{label}</span>
     {hint && <span className="text-[10px] text-white/50 tabular-nums">{hint}</span>}
   </button>
 );
 
-const RagDot = ({ pct, thresholds }) => {
-  const r = rating(pct, thresholds);
+const RagDot = ({ pct, thresholds, rating: explicit }) => {
+  const r = explicit || rating(pct, thresholds);
   const bg = r === "red" ? "bg-rag-red" : r === "amber" ? "bg-rag-amber" : "bg-rag-green";
   return <span className={cn("inline-block h-2 w-2 rounded-full", bg)} aria-hidden />;
 };

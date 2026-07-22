@@ -82,6 +82,36 @@ export const measureRating = (measure, targets, thresholds) => {
   return rating(measureAchievement(measure, targets), thresholds);
 };
 
+const RAG_ORDER = { green: 0, amber: 1, red: 2 };
+
+/** The worst status in a list — an "on target" parent cannot hide an "off track" child. */
+const worstRating = (ratings, fallback = "red") =>
+  ratings.length
+    ? ratings.reduce((worst, r) => (RAG_ORDER[r] > RAG_ORDER[worst] ? r : worst), "green")
+    : fallback;
+
+/**
+ * RAG status for an objective: the worst status among its measures.
+ *
+ * Deliberately NOT a band on the weighted score. Those two disagree, and when
+ * they do the score is the misleading one — a weighted average lets a strong
+ * measure mask a failing one, so an objective could show green while something
+ * underneath it was amber. Weights still drive the numeric score; they just no
+ * longer decide the colour.
+ */
+export const objectiveRating = (objective, measures, targets, thresholds) => {
+  const oms = measures.filter((m) => m.objective_id === objective.id);
+  if (!oms.length) return rating(0, thresholds);
+  return worstRating(oms.map((m) => measureRating(m, targets, thresholds)));
+};
+
+/** RAG status for a perspective: the worst status among its objectives. */
+export const perspectiveRating = (perspectiveId, objectives, measures, targets, thresholds) => {
+  const objs = objectives.filter((o) => o.perspective_id === perspectiveId);
+  if (!objs.length) return rating(0, thresholds);
+  return worstRating(objs.map((o) => objectiveRating(o, measures, targets, thresholds)));
+};
+
 /** Aggregate a measure across its targets — average of achievement % across periods (with targets) */
 export const measureAchievement = (measure, targets) => {
   const ms = targets.filter((t) => t.measure_id === measure.id);
