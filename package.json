@@ -1,0 +1,13 @@
+{
+  "name": "sogrape-scorecard",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "migrate": "node scripts/migrate.mjs",
+    "build": "npm run migrate && cd frontend && npm run build"
+  },
+  "dependencies": {
+    "pg": "8.13.1"
+  },
+  "engines": { "node": ">=20" }
+}
