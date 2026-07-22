@@ -79,7 +79,7 @@ const EntryScreen = () => {
         level={level}
         pouring={pouring}
         size={172}
-        transition={{ duration: pouring ? 1.6 : 0.5, ease: "easeInOut" }}
+        fillMs={pouring ? 1600 : 500}
       />
     </motion.div>
   );

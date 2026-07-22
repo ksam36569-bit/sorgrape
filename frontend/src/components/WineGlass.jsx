@@ -1,21 +1,33 @@
 import React from "react";
-import { motion } from "framer-motion";
 
 /**
  * Line-art wine glass for the entry animation.
  *
- * Drawn on a 140x210 grid so the caller can size it freely. The bowl path is
- * reused as a clip for the wine, which is why `level` can be animated smoothly:
- * the fill is one rectangle sliding up behind the clip, not a reshaped path.
+ * Drawn on a 140x210 grid so the caller can size it freely. The bowl path doubles
+ * as a clip for the wine, so `level` moves one rectangle rather than reshaping a
+ * path each frame.
+ *
+ * The fill is a plain CSS transition on a transform, deliberately not a
+ * framer-motion animation. Two things went wrong with the motion version:
+ * animating the rect's y/height wrote CSS pixels, which stop matching user units
+ * once the SVG is scaled; and re-renders during the sequence interrupted the
+ * animation, leaving the glasses stuck part-filled. A transform keeps the units
+ * in user space, and a CSS transition always lands on its final value.
  *
  * @param level    0 = empty, 1 = full to the rim
  * @param pouring  draw the stream falling into the bowl
  */
 const BOWL = "M20,14 L20,54 C20,92 41,112 70,112 C99,112 120,92 120,54 L120,14 Z";
 
-// Interior span the wine can occupy, in the same user units as BOWL.
 const WINE_TOP = 16;
 const WINE_BOTTOM = 112;
+const SPAN = WINE_BOTTOM - WINE_TOP;
+
+const BUBBLES = [
+  { cx: 52, r: 2.1, delay: "0s" },
+  { cx: 84, r: 1.5, delay: "0.8s" },
+  { cx: 66, r: 1.2, delay: "1.5s" },
+];
 
 const WineGlass = ({
   id = "glass",
@@ -23,18 +35,13 @@ const WineGlass = ({
   pouring = false,
   size = 190,
   stroke = "#7A1B2B",
+  fillMs = 1500,
   className = "",
-  transition = { duration: 1.5, ease: "easeInOut" },
 }) => {
   const clipId = `bowl-clip-${id}`;
   const wineId = `wine-grad-${id}`;
-  const span = WINE_BOTTOM - WINE_TOP;
   const filled = Math.max(0, Math.min(1, level));
-  // Slide a full-height rectangle down out of view rather than animating the
-  // rect's y/height. Framer writes those as CSS pixels, which stop matching user
-  // units the moment the SVG is scaled — that rendered a 0.72 level as ~0.38.
-  // A transform is in user space, so it stays correct at any size.
-  const drop = span * (1 - filled);
+  const drop = SPAN * (1 - filled);
 
   return (
     <svg
@@ -54,56 +61,63 @@ const WineGlass = ({
           <stop offset="55%" stopColor="#6E1B2E" />
           <stop offset="100%" stopColor="#511320" />
         </linearGradient>
+        <style>{`
+          @keyframes wg-rise-${id} {
+            0%   { transform: translateY(0);      opacity: 0; }
+            25%  { opacity: .55; }
+            100% { transform: translateY(-${Math.max(8, SPAN * filled - 14)}px); opacity: 0; }
+          }
+          .wg-bubble-${id} { animation: wg-rise-${id} 2.8s ease-out infinite; }
+          @media (prefers-reduced-motion: reduce) {
+            .wg-fill-${id} { transition: none !important; }
+            .wg-bubble-${id} { animation: none; opacity: 0; }
+          }
+        `}</style>
       </defs>
 
-      {/* Stream, drawn behind the glass so it disappears under the rim */}
+      {/* Stream sits behind the glass so it vanishes under the rim */}
       {pouring && (
-        <motion.line
+        <line
           x1="70"
           x2="70"
-          y1="-70"
+          y1="-60"
+          y2="30"
           stroke={stroke}
           strokeWidth="2.5"
           strokeLinecap="round"
-          initial={{ y2: -70, opacity: 0 }}
-          animate={{ y2: 30, opacity: 0.85 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.35, ease: "easeIn" }}
+          opacity="0.8"
         />
       )}
 
       <g clipPath={`url(#${clipId})`}>
-        <motion.rect
+        <rect
+          className={`wg-fill-${id}`}
           x="0"
           y={WINE_TOP}
           width="140"
-          height={span + 2}
-          initial={false}
-          animate={{ y: drop }}
-          transition={transition}
+          height={SPAN + 2}
           fill={`url(#${wineId})`}
+          style={{
+            transform: `translateY(${drop}px)`,
+            transition: `transform ${fillMs}ms cubic-bezier(.4,0,.2,1)`,
+          }}
         />
-        {/* Bubbles drift up once there is wine to drift through */}
         {filled > 0.15 &&
-          [
-            { cx: 52, r: 2.1, delay: 0 },
-            { cx: 84, r: 1.5, delay: 0.7 },
-            { cx: 66, r: 1.2, delay: 1.3 },
-          ].map((b, i) => (
-            <motion.circle
+          BUBBLES.map((b, i) => (
+            <circle
               key={i}
+              className={`wg-bubble-${id}`}
               cx={b.cx}
-              cy={WINE_BOTTOM - 6}
+              cy={WINE_BOTTOM - 8}
               r={b.r}
               fill="#C98A9B"
-              // Transform again, for the same unit reason as the fill above.
-              animate={{ y: [0, -(span * filled - 12)], opacity: [0, 0.5, 0] }}
-              transition={{ duration: 2.6, delay: b.delay, repeat: Infinity, ease: "easeOut" }}
+              opacity="0"
+              style={{ animationDelay: b.delay }}
             />
           ))}
       </g>
 
-      {/* Outline sits above the wine so the rim reads as glass, not liquid */}
+      {/* Outline above the wine, so the rim reads as glass rather than liquid */}
       <path d={BOWL} fill="none" stroke={stroke} strokeWidth="2.2" strokeLinejoin="round" />
       <line x1="20" y1="14" x2="120" y2="14" stroke={stroke} strokeWidth="2.2" strokeLinecap="round" />
       <line x1="70" y1="112" x2="70" y2="172" stroke={stroke} strokeWidth="2.2" strokeLinecap="round" />
