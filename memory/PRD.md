@@ -92,19 +92,36 @@ Iteration 2 testing: backend 10/10 new + 16/16 regression, frontend 100% ✅
 1. Confirm Phase 2-5 with user.
 2. Pick up any P2 items the user prioritises.
 
-## Deployment (2026-07-22)
+## Architecture change (2026-07-22)
 
-Migrated off the Emergent platform so the project builds and deploys anywhere.
+Migrated off the Emergent platform, then off the server entirely.
 
-- `emergentintegrations` (private, not on PyPI) replaced with the official `openai` and
-  `anthropic` SDKs. OpenAI is tried first, Anthropic is the fallback; if the primary fails
-  before emitting any text the other is used, and a mid-stream failure surfaces an error
-  rather than retrying and duplicating output. Model names are env-overridable.
-- `@emergentbase/visual-edits` removed. It is served from assets.emergent.sh, which returns
-  403 to any other CI, so it broke installs everywhere else.
-- Standardised on npm. `resolutions` was a yarn-only field that npm silently ignored, which
-  produced a broken ajv/ajv-keywords tree; it is now `overrides` with a committed
-  package-lock.json. `.npmrc` pins legacy-peer-deps for the react-day-picker/date-fns conflict.
-- Vercel: `vercel.json` builds the CRA app and serves `backend/server.py` through
-  `api/index.py`. Frontend and API are same-origin, so `REACT_APP_BACKEND_URL` is left empty.
-- Requires a hosted MongoDB (Atlas). Serverless functions cannot reach a local database.
+**Persistence is now local.** Scorecards live in the browser's IndexedDB
+(`lib/store.js`); `lib/api.js` keeps the same 27 method signatures it had when it
+spoke to a REST backend, so no consuming component changed. Consequences:
+
+- No database, no accounts, no keys in the client, nothing world-writable.
+- A scorecard belongs to the browser that created it. The multi-user shared
+  state Phase 1 chose MongoDB for is gone; Reports -> Export/Import JSON is how
+  a scorecard moves between people and machines.
+- Clearing site data deletes scorecards. Export is the backup.
+
+**Emergent removal.** `emergentintegrations` (private, not on PyPI) and
+`@emergentbase/visual-edits` (403s from assets.emergent.sh) both broke builds
+anywhere else. Also removed a PostHog session recorder that was streaming user
+sessions to ap.emergent.sh, and a `.gitconfig` hardcoding the commit author.
+
+**Server-side code** is one dependency-free Vercel function, `api/ai-summary.js`,
+which exists only so the model provider key never reaches the browser. The client
+posts the scorecard snapshot; the function streams the briefing back over SSE with
+OpenAI primary and Anthropic fallback.
+
+**Build.** Standardised on npm — `resolutions` was a yarn-only field npm silently
+ignored, which produced a broken ajv tree. Now `overrides` with a committed
+package-lock.json.
+
+### Backlog
+- Route-level code splitting: the main bundle is ~707 kB gzipped because
+  recharts, reactflow, xlsx and jspdf are all eagerly imported.
+- Supabase (or any hosted Postgres) if shared multi-user state is wanted back.
+  The schema for it is in git history at commit 6c8b239.

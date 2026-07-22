@@ -4,9 +4,11 @@
 // never reach the browser — everything else the app does goes straight to
 // Supabase from the client.
 //
-// Deliberately dependency-free: Node 18+ has global fetch, and both Supabase and
-// the two model providers are plain REST. That keeps the cold start short and
-// means no root package.json is needed just for this file.
+// The scorecard itself is stored in the user's browser, so the client posts the
+// snapshot in the request body — this function keeps no data of its own.
+//
+// Deliberately dependency-free: Node 18+ has global fetch and both providers are
+// plain REST, so the cold start stays short and no root package.json is needed.
 
 const PERSPECTIVES = [
   { id: "financial", name: "Financial" },
@@ -105,28 +107,6 @@ function buildSummaryPrompt(project) {
   return lines.join("\n");
 }
 
-// ------------------------------------------------------------- supabase
-
-async function fetchProject(projectId) {
-  const url = process.env.SUPABASE_URL || process.env.REACT_APP_SUPABASE_URL;
-  // Prefer the service-role key so the briefing keeps working once RLS is tightened.
-  const key =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.SUPABASE_ANON_KEY ||
-    process.env.REACT_APP_SUPABASE_ANON_KEY;
-  if (!url || !key) throw new Error("Supabase is not configured for the API function.");
-
-  const select = "*,objectives(*),measures(*),targets(*),initiatives(*)";
-  const res = await fetch(
-    `${url}/rest/v1/projects?id=eq.${encodeURIComponent(projectId)}&select=${encodeURIComponent(select)}`,
-    { headers: { apikey: key, Authorization: `Bearer ${key}`, Accept: "application/json" } }
-  );
-  if (!res.ok) throw new Error(`Supabase returned ${res.status}: ${await res.text()}`);
-  const rows = await res.json();
-  if (!rows.length) throw new Error("Project not found");
-  return rows[0];
-}
-
 // ------------------------------------------------------------ providers
 
 /** Yield text deltas from an SSE body, passing each `data:` payload to `pick`. */
@@ -217,9 +197,9 @@ export default async function handler(req, res) {
   res.setHeader("Connection", "keep-alive");
   res.setHeader("X-Accel-Buffering", "no");
 
-  const projectId = new URL(req.url, `http://${req.headers.host}`).searchParams.get("project_id");
-  if (!projectId) {
-    res.write(sseError("project_id is required"));
+  const project = req.body?.project;
+  if (!project || typeof project !== "object") {
+    res.write(sseError("A project snapshot is required in the request body."));
     res.end();
     return;
   }
@@ -229,15 +209,6 @@ export default async function handler(req, res) {
   if (process.env.ANTHROPIC_API_KEY) providers.push(["Anthropic", streamAnthropic]);
   if (!providers.length) {
     res.write(sseError("No AI provider configured. Set OPENAI_API_KEY or ANTHROPIC_API_KEY."));
-    res.end();
-    return;
-  }
-
-  let project;
-  try {
-    project = await fetchProject(projectId);
-  } catch (err) {
-    res.write(sseError(err.message));
     res.end();
     return;
   }
