@@ -169,8 +169,14 @@ const DashboardChartsView = ({ filters, setFilters }) => {
         <Card className="p-5">
           <ChartHead title="Achievement trend" subtitle="Average % across periods" />
           <div className="h-64">
-            {trendData.length === 0 ? (
-              <EmptyChart msg="Add targets/actuals to see the trend." />
+            {trendData.length < 2 ? (
+              <EmptyChart
+                msg={
+                  trendData.length === 1
+                    ? `Only one period (${trendData[0].period}) has data — a trend needs at least two.`
+                    : "Add targets/actuals to see the trend."
+                }
+              />
             ) : (
               <ResponsiveContainer>
                 <LineChart data={trendData} margin={{ top: 10, right: 10, left: 0, bottom: 10 }}>
