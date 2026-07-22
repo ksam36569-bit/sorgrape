@@ -2,14 +2,14 @@
 //
 // Run from the repo root:  node frontend/src/lib/__tests__/rag.fixture.mjs
 //
-// Every status in data/sogrape-fy25.json must match what the source workbook
+// Every status in frontend/src/data/sogrape-fy25.json must match what the source workbook
 // reported. Seven of these disagree with the old achievement-band rule, so this
 // will catch anyone reverting measureRating() back to percentage banding.
 
 import { readFileSync } from "fs";
 import { measureRating, objectiveRating, perspectiveRating, measureAchievement, rating, objectiveScore } from "../calculations.js";
 
-const project  = JSON.parse(readFileSync("data/sogrape-fy25.json", "utf8"));
+const project  = JSON.parse(readFileSync("frontend/src/data/sogrape-fy25.json", "utf8"));
 const expected = JSON.parse(readFileSync("data/expected-rag.json", "utf8"));
 const byName   = Object.fromEntries(expected.map((e) => [e.measure, e.expected_rag]));
 
