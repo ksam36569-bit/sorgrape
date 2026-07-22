@@ -37,6 +37,26 @@ export const DASH = {
   addDepartment: "add-department-btn",
   overallScore: "overall-score",
   projectSwitcher: "project-switcher",
+  aiSummary: "ai-summary-btn",
+  exportJson: "export-json-btn",
+  importJson: "import-json-btn",
+  updateActuals: "update-actuals-btn",
+};
+
+export const SECTION = {
+  scorecard: "section-scorecard",
+  dashboard: "section-dashboard",
+  strategyMap: "section-strategy-map",
+  alignment: "section-alignment",
+  initiatives: "section-initiatives",
+  reports: "section-reports",
+};
+
+export const INIT = {
+  addBtn: "add-initiative-btn",
+  dialog: "initiative-dialog",
+  save: "initiative-save",
+  name: "initiative-name",
 };
 
 export const IMPORT = {

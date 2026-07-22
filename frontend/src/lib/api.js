@@ -36,6 +36,12 @@ export const api = {
 
   bulkImport: (pid, payload) => client.post(`/projects/${pid}/bulk-import`, payload).then((r) => r.data),
   updateActuals: (pid, rows) => client.post(`/projects/${pid}/update-actuals`, { rows }).then((r) => r.data),
+
+  addStrategyEdge: (pid, source, target, label = "") => client.post(`/projects/${pid}/strategy-edges`, { source, target, label }).then((r) => r.data),
+  deleteStrategyEdge: (pid, eid) => client.delete(`/projects/${pid}/strategy-edges/${eid}`).then((r) => r.data),
+
+  // SSE — returns fetch response for streaming; consumer handles parsing.
+  aiSummary: (pid) => fetch(`${API}/projects/${pid}/ai-summary`, { method: "POST", headers: { "Content-Type": "application/json" } }),
 };
 
 export default api;

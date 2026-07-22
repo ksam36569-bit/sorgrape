@@ -1,4 +1,5 @@
 from fastapi import FastAPI, APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -149,6 +150,7 @@ def _empty_project(payload: ProjectCreate) -> dict:
         "measures": [],
         "targets": [],
         "initiatives": [],
+        "strategy_edges": [],
         "created_at": _now(),
         "updated_at": _now(),
     }
@@ -244,7 +246,7 @@ async def import_project(payload: Dict[str, Any]):
     doc.setdefault("perspectives", PERSPECTIVES)
     doc.setdefault("perspective_weights", DEFAULT_PROJECT_EXTRAS["perspective_weights"].copy())
     doc.setdefault("performance_thresholds", DEFAULT_PROJECT_EXTRAS["performance_thresholds"].copy())
-    for k in ("departments", "objectives", "measures", "targets", "initiatives"):
+    for k in ("departments", "objectives", "measures", "targets", "initiatives", "strategy_edges"):
         doc.setdefault(k, [])
     await PROJECTS.insert_one(doc.copy())
     return doc
@@ -640,6 +642,164 @@ async def update_actuals(pid: str, payload: UpdateActualsPayload):
     doc["updated_at"] = _now()
     await PROJECTS.replace_one({"id": pid}, doc)
     return {"updated": updated, "created": created, "project": doc}
+
+
+# ---------- Strategy Map edges ----------
+
+class StrategyEdgeIn(BaseModel):
+    source: str  # objective id
+    target: str  # objective id
+    label: Optional[str] = ""
+
+
+@api_router.post("/projects/{pid}/strategy-edges")
+async def add_strategy_edge(pid: str, payload: StrategyEdgeIn):
+    if payload.source == payload.target:
+        raise HTTPException(status_code=400, detail="Source and target must differ")
+    edge = {"id": new_id(), **payload.model_dump()}
+    await PROJECTS.update_one({"id": pid}, {"$push": {"strategy_edges": edge}})
+    await _touch(pid)
+    return edge
+
+
+@api_router.delete("/projects/{pid}/strategy-edges/{eid}")
+async def delete_strategy_edge(pid: str, eid: str):
+    await PROJECTS.update_one({"id": pid}, {"$pull": {"strategy_edges": {"id": eid}}})
+    await _touch(pid)
+    return {"ok": True}
+
+
+# ---------- AI Summary (Claude Sonnet via Emergent LLM key, streaming SSE) ----------
+
+def _build_summary_prompt(project: dict) -> str:
+    # Compute scores server-side so the LLM gets numbers, not raw records
+    persp_map = {p["id"]: p["name"] for p in PERSPECTIVES}
+    p_weights = project.get("perspective_weights", {})
+    objs = project.get("objectives", [])
+    meas = project.get("measures", [])
+    tgts = project.get("targets", [])
+
+    def measure_pct(m):
+        rel = [t for t in tgts if t["measure_id"] == m["id"]]
+        if not rel:
+            return 0.0
+        return sum(
+            ((float(t.get("actual_value") or 0)) / (float(t.get("target_value") or 0) or 1)) * 100
+            for t in rel
+        ) / len(rel)
+
+    def objective_score(o):
+        oms = [m for m in meas if m["objective_id"] == o["id"]]
+        if not oms:
+            return 0.0
+        return sum(measure_pct(m) * (float(m.get("weight") or 0) / 100) for m in oms)
+
+    def perspective_score(pid):
+        oss = [o for o in objs if o["perspective_id"] == pid]
+        if not oss:
+            return 0.0
+        return sum(objective_score(o) * (float(o.get("weight") or 0) / 100) for o in oss)
+
+    lines = [
+        f"Company: {project.get('company_name')}",
+        f"Industry: {project.get('industry')}",
+        f"Fiscal Year: {project.get('fiscal_year')}",
+        f"Vision: {project.get('vision','') or 'n/a'}",
+        f"Mission: {project.get('mission','') or 'n/a'}",
+        "",
+        "Perspective scores (weight):",
+    ]
+    for pid, pname in persp_map.items():
+        s = perspective_score(pid)
+        w = p_weights.get(pid, 0)
+        lines.append(f"- {pname}: {s:.1f}%  (weight {w}%)")
+
+    lines.append("")
+    lines.append("Objectives:")
+    for o in objs:
+        s = objective_score(o)
+        lines.append(
+            f"- [{persp_map.get(o['perspective_id'],'?')}] {o['name']}  score={s:.1f}%  weight={o.get('weight',0)}%  status={o.get('status')}  priority={o.get('priority')}  owner={o.get('owner') or '—'}"
+        )
+
+    lines.append("")
+    lines.append("Top measures (up to 20):")
+    scored = []
+    for m in meas:
+        scored.append((m, measure_pct(m)))
+    for m, pct in scored[:20]:
+        obj = next((o for o in objs if o["id"] == m["objective_id"]), None)
+        lines.append(
+            f"- {m['name']} · unit={m.get('unit')} · weight={m.get('weight',0)}% · achievement={pct:.1f}% · objective={obj['name'] if obj else '—'}"
+        )
+
+    lines.append("")
+    lines.append("Initiatives:")
+    for i in project.get("initiatives", []):
+        lines.append(
+            f"- {i['name']}  progress={i.get('progress',0)}%  status={i.get('status')}  risk={i.get('risk_level')}  owner={i.get('owner') or '—'}"
+        )
+
+    return "\n".join(lines)
+
+
+AI_SYSTEM = (
+    "You are a seasoned Balanced Scorecard consultant advising Sogrape's executive team. "
+    "You'll receive a snapshot of Sogrape's scorecard: perspectives, objectives, measures with "
+    "achievement percentages, and initiatives. Produce a crisp executive-briefing narrative in "
+    "markdown, structured as: \n\n"
+    "## Executive summary\n(2-3 sentences on overall health)\n\n"
+    "## Wins (up to 3)\n- ...\n\n"
+    "## Areas at risk (up to 3)\n- ...\n\n"
+    "## Recommended next actions (up to 5)\n1. ...\n\n"
+    "Ground every claim in the numbers provided. Do not invent measures. Keep it concise, executive-tone, "
+    "and highlight quick wins vs. structural risks."
+)
+
+
+@api_router.post("/projects/{pid}/ai-summary")
+async def ai_summary(pid: str):
+    """Streams a Claude Sonnet 4.5 executive summary of the scorecard as SSE."""
+    project = await _get_project(pid)
+
+    async def generator():
+        try:
+            from emergentintegrations.llm.chat import LlmChat, UserMessage, TextDelta, StreamDone
+        except Exception as e:
+            yield f"data: {{\"error\": \"integration unavailable: {e}\"}}\n\n"
+            return
+
+        api_key = os.environ.get("EMERGENT_LLM_KEY")
+        if not api_key:
+            yield "data: {\"error\": \"EMERGENT_LLM_KEY missing\"}\n\n"
+            return
+
+        chat = LlmChat(
+            api_key=api_key,
+            session_id=f"scorecard-{pid}-{uuid.uuid4().hex[:8]}",
+            system_message=AI_SYSTEM,
+        ).with_model("anthropic", "claude-sonnet-4-5-20250929")
+
+        prompt = _build_summary_prompt(project)
+        user_message = UserMessage(text=f"Here is the scorecard snapshot:\n\n{prompt}\n\nWrite the briefing now.")
+
+        try:
+            async for ev in chat.stream_message(user_message):
+                if isinstance(ev, TextDelta):
+                    # SSE data lines: replace newlines with \n so multi-line stays one event
+                    chunk = ev.content.replace("\n", "\\n")
+                    yield f"data: {chunk}\n\n"
+                elif isinstance(ev, StreamDone):
+                    yield "data: [DONE]\n\n"
+                    break
+        except Exception as e:
+            yield f"data: {{\"error\": \"{str(e)}\"}}\n\n"
+
+    return StreamingResponse(
+        generator(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no", "Connection": "keep-alive"},
+    )
 
 
 app.include_router(api_router)

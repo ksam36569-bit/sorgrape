@@ -143,3 +143,21 @@
 }
 
 /* React Flow overrides — deferred to Phase 3, but keep import safe */
+
+/* ---------- Print styles ---------- */
+@media print {
+  body { background: white !important; color: black !important; }
+  aside, header, nav, [data-print-hide="true"] { display: none !important; }
+  #report-print-area {
+    background: white !important;
+    color: black !important;
+    border: none !important;
+    padding: 12mm !important;
+    box-shadow: none !important;
+  }
+  .print-report { page-break-inside: avoid; }
+  .print-report h1, .print-report h2 { break-after: avoid; }
+  .print-report table { border-collapse: collapse; }
+  .print-report table th, .print-report table td { border: 0.5pt solid #cccccc; padding: 4pt 6pt; }
+}
+body.print-active #report-print-area { background: white; color: black; }

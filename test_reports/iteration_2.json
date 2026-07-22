@@ -1,0 +1,45 @@
+{
+  "summary": "Phase 2-5 comprehensive testing of Sogrape Balanced Scorecard. FIXED a critical compile blocker in StrategyMapView.jsx (stray duplicate JSX fragment after export default caused webpack SyntaxError, blocking the entire app). After fix: Backend 10/10 new pytest cases passed (strategy-edges add/self-loop-400/delete, initiatives CRUD with measure_ids, update-actuals shape returns updated+created+project, JSON import roundtrip creates new project, JSON import with minimal payload backfills defaults, AI SSE stream returns text/event-stream + terminates with [DONE] + 3000+ chars of Claude Sonnet 4.5 content). Frontend end-to-end verified via Playwright on seeded 'Sogrape Demo' project: 6 top-level section tabs (Scorecard/Dashboard/Strategy Map/Alignment/Initiatives/Reports), Dashboard renders 4 Recharts + StatCards + FilterBar with LIVE re-aggregation (overall 48.8% -> 14.3% when Perspective=Financial only -> back to 48.8% on Clear), Strategy Map renders 4 objective nodes and 'Suggest standard chain' bulk-creates 3 edges (L&G->Internal->Customer->Financial) that PERSIST across full page reload, Initiatives CRUD works (create with linked-measure checkbox -> card appears, delete -> card removed with toast), Reports downloads all succeed as real files (JSON 8.3KB, CSV 1.1KB, XLSX 26KB, PDF 380KB), AI Analyze dialog streams a well-formatted markdown executive briefing to ai-summary-content (3197 chars observed) with Regenerate button visible. Zero console errors, zero 4xx/5xx network calls during the whole flow.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/projects/{pid}/objectives (PUT)", "issue": "Carry-over from iteration_1: PUT returns request payload minus id, not the full stored record. Cosmetic only."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "StrategyMapView.jsx (lines 220-229)", "issue": "FIXED IN THIS ITERATION — stray duplicate JSX fragment appended after the first `export default StrategyMapView;` produced a Babel SyntaxError ('Missing semicolon. (221:67)') and put the CRA compile-error overlay full-screen over the app, making the entire /scorecard, /portal, and every other route unreachable. Removed the trailing duplicate block so the file now ends cleanly at the first export.", "selector": "n/a", "priority": "CRITICAL (blocker)"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_phase2_test.py",
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/phase2_results.xml"
+  ],
+  "action_items": [
+    "Add a pre-commit / CI eslint check for the frontend so a mid-file stray JSX block like the one in StrategyMapView.jsx doesn't reach the preview environment again — a bare `npx eslint src --max-warnings 0` would have caught this before hot-reload.",
+    "(Nit, carry-over from iteration_1) PUT /api/projects/{pid}/objectives could return the fully-hydrated stored objective so the client doesn't need a follow-up GET after edits."
+  ],
+  "critical_code_review_comments": [
+    "server.py POST /projects/{pid}/strategy-edges does NOT validate that source and target actually exist inside the project's objectives array — you can push edges pointing to arbitrary UUIDs and they'll persist. Consider looking up both ids in doc.objectives and returning 400 otherwise, symmetrical to the source==target check already in place.",
+    "server.py POST /projects/{pid}/strategy-edges also does not de-duplicate (source, target) pairs, so 'Suggest standard chain' can be clicked repeatedly and each click will silently add another edge on top of the existing three. Since the frontend batches ~3 POSTs on each click, a user double-clicking the button leaves 6 overlapping edges. Recommend a uniqueness check on (source,target) before push.",
+    "server.py POST /projects/import blindly accepts arbitrary JSON and stores it — a malicious payload could include extra top-level fields (e.g. '__proto__', large arrays) that get persisted verbatim. Consider whitelisting the known keys instead of setdefault+insert of the whole payload.",
+    "server.py ai_summary streams tokens as `data: {chunk}\\n\\n` where {chunk} replaces \\n with the literal characters '\\n'. If the model ever emits a raw carriage-return, or the chunk itself starts with 'data:' or a colon, the SSE framing will break. Consider prefixing each line with 'data:' and joining, or base64-encoding the payload.",
+    "StrategyMapView.jsx trailing duplicate JSX (now fixed) shows there is no linter running on save — turning on eslint react/jsx-no-comment-textnodes and no-unreachable would help.",
+    "ReportsView.jsx invokes html2canvas on the entire #report-print-area synchronously in the click handler; on very large scorecards this can freeze the tab. Consider using html-to-image or splitting the render into pages.",
+    "AiSummaryDialog uses a raw fetch reader; if the streaming connection drops mid-way the UI stays in the 'streaming' state forever (no timeout/abort). Add an AbortController + timeout for robustness."
+  ],
+  "updated_files": [
+    "/app/frontend/src/pages/StrategyMapView.jsx",
+    "/app/backend/tests/backend_phase2_test.py"
+  ],
+  "success_rate": {"backend": "100% (10/10 new + 16/16 phase1 regression)", "frontend": "100% of tested flows"},
+  "test_credentials": "n/a (no auth)",
+  "seed_data_creation": "Test project 'TEST_Phase2_Backend' created inside pytest fixtures and removed on teardown. Test initiative 'TEST_UI_Init_A' was created on the Sogrape Demo project during UI testing and deleted at the end of the run. NOTE: 3 strategy-edges were added to the Sogrape Demo project via the 'Suggest standard chain' UI test and remain persisted (Learning->Internal->Customer->Financial). These are valid demo data and were intentionally left in place per instructions.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Phase 2-5 verified end-to-end. New backend regression suite is at /app/backend/tests/backend_phase2_test.py (10 tests, uses REACT_APP_BACKEND_URL, ~26s runtime, includes an actual live Claude Sonnet 4.5 SSE stream check). Frontend key testids to remember: section-scorecard/dashboard/strategy-map/alignment/initiatives/reports; filter-bar + filter-perspective/department/owner/quarter/year/status/priority/risk + a Clear button (not a data-testid, plain text button inside filter-bar); dashboard-charts, stat-overall; strategy-map, strategy-map-standard-chain; initiatives-view, add-initiative-btn, initiative-dialog, initiative-name, initiative-save, initiative-card-{id}; export-pdf-btn/export-excel-btn/export-csv-btn/print-btn/export-json-btn/import-json-btn/update-actuals-btn; ai-summary-btn, ai-summary-dialog, ai-summary-content, ai-summary-regenerate. IMPORTANT — the compile-blocker in StrategyMapView.jsx was patched during this iteration; if the file is regenerated by the main agent, ensure it ends cleanly with `export default StrategyMapView;` and NO further code. The Sogrape Demo project on the preview cluster now has 3 strategy edges persisted (chain L&G->Internal->Customer->Financial). AI streaming via curl returns Content-Type: text/event-stream and successfully terminates with data: [DONE].",
+  "rca_of_the_issue": "Root cause of the initial full-app blocker: StrategyMapView.jsx had lines 220-229 as a duplicate/stray copy of the legend markup pasted after `export default StrategyMapView;` on line 219 — specifically the fragment began with `ssName=\"flex items-center gap-1.5\">` (missing `cla` prefix, clearly the tail of a botched paste), causing Babel to raise 'Missing semicolon. (221:67)'. Repro: `curl -I https://.../portal` returns 200 but the DOM renders CRA's red 'Compiled with problems' overlay because webpack-dev-server injects the error at the top of every page. Fix: delete lines 220-229 so the file ends at line 219 (`export default StrategyMapView;`). Verified fix by tailing /var/log/supervisor/frontend.*.log and observing 'Compiled successfully!' plus by re-loading /portal and successfully navigating to /scorecard."
+}
