@@ -1,136 +1,168 @@
-import React from "react";
-import { motion } from "framer-motion";
+import React, { useEffect, useMemo, useState } from "react";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import WineGlass from "../components/WineGlass";
-import { Button } from "@/components/ui/button";
 import { ENTRY } from "../constants/testIds";
 import { ArrowRight } from "lucide-react";
 
+/**
+ * Entry screen.
+ *
+ * Two glasses swing together for a toast, then the wine pours in and the
+ * scorecard opens. The sequence is a small timed state machine rather than a
+ * chain of nested callbacks, so every step is visible in one place and the whole
+ * thing can be skipped or disabled without unpicking anything.
+ */
+const STEPS = [
+  { key: "enter", at: 0, caption: "To performance…" },
+  { key: "clink", at: 700, caption: "To performance…" },
+  { key: "pour", at: 1150, caption: "Pouring your scorecard…" },
+  { key: "settle", at: 2900, caption: "Pouring your scorecard…" },
+  { key: "welcome", at: 3300, caption: "Welcome" },
+];
+
+const FINAL = STEPS.length - 1;
+
 const EntryScreen = () => {
   const navigate = useNavigate();
+  const reduceMotion = useReducedMotion();
+  // Anyone who prefers reduced motion gets the finished picture, no animation.
+  const [step, setStep] = useState(reduceMotion ? FINAL : 0);
+
+  useEffect(() => {
+    if (reduceMotion || step >= FINAL) return undefined;
+    const timers = STEPS.slice(1).map((s, i) =>
+      setTimeout(() => setStep((cur) => Math.max(cur, i + 1)), s.at)
+    );
+    return () => timers.forEach(clearTimeout);
+    // Runs once: the timers own the whole sequence from here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reduceMotion]);
+
+  const skip = () => setStep(FINAL);
   const go = () => navigate("/portal");
+
+  const phase = STEPS[step].key;
+  const clinking = phase === "clink" || phase === "pour";
+  const pouring = phase === "pour";
+  const level = useMemo(() => {
+    if (phase === "enter" || phase === "clink") return 0.18;
+    if (phase === "pour") return 0.7;
+    return 0.72;
+  }, [phase]);
+
+  // Glasses tip toward each other for the toast, then stand upright.
+  const tilt = clinking ? 13 : 0;
+  const close = clinking ? 26 : 0;
+
+  const glass = (side) => (
+    <motion.div
+      initial={reduceMotion ? false : { opacity: 0, y: 26 }}
+      animate={{
+        opacity: 1,
+        y: phase === "clink" ? -6 : 0,
+        rotate: side === "left" ? tilt : -tilt,
+        x: side === "left" ? close : -close,
+      }}
+      transition={{
+        opacity: { duration: 0.5 },
+        // A brief, stiff spring on contact reads as a clink rather than a glide.
+        rotate: { type: "spring", stiffness: 210, damping: 13 },
+        x: { type: "spring", stiffness: 210, damping: 13 },
+        y: { type: "spring", stiffness: 300, damping: 12 },
+      }}
+      style={{ transformOrigin: "50% 85%" }}
+      data-testid={side === "left" ? ENTRY.leftGlass : ENTRY.rightGlass}
+    >
+      <WineGlass
+        id={side}
+        level={level}
+        pouring={pouring}
+        size={172}
+        transition={{ duration: pouring ? 1.6 : 0.5, ease: "easeInOut" }}
+      />
+    </motion.div>
+  );
 
   return (
     <div
       data-testid={ENTRY.root}
-      className="relative min-h-screen overflow-hidden bg-[#1A1213] text-[#F4EFEA]"
+      onClick={step < FINAL ? skip : go}
+      className="relative min-h-screen overflow-hidden bg-[#FBF6F3] text-[#4A2027] cursor-pointer select-none"
     >
-      {/* Background photography */}
+      {/* Warm vignette, so the cream background is not flat */}
       <div
         aria-hidden
-        className="absolute inset-0 bg-cover bg-center opacity-30"
-        style={{
-          backgroundImage:
-            "url('https://images.unsplash.com/photo-1567072629554-20e689de2400?crop=entropy&cs=srgb&fm=jpg&q=80&w=2000')",
-        }}
+        className="absolute inset-0"
+        style={{ background: "radial-gradient(ellipse at 50% 38%, #FFFDFC 0%, #F6EDE8 55%, #EFE3DD 100%)" }}
       />
-      <div aria-hidden className="absolute inset-0 bg-gradient-to-b from-[#1A1213]/60 via-[#1A1213]/70 to-[#1A1213]" />
-      <div aria-hidden className="absolute inset-0 grain" />
 
-      {/* Content */}
-      <div className="relative z-10 flex min-h-screen flex-col">
-        {/* Header */}
-        <header className="flex items-center justify-between px-10 py-8">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-full border border-sogrape-gold/60 flex items-center justify-center">
-              <span className="font-serif text-sogrape-gold text-lg">S</span>
-            </div>
-            <div className="leading-tight">
-              <div className="font-serif text-lg tracking-wide">Sogrape</div>
-              <div className="text-[10px] uppercase tracking-[0.35em] text-sogrape-gold/80">Estates & Wines</div>
-            </div>
-          </div>
-          <div className="text-xs uppercase tracking-[0.3em] text-white/60 hidden sm:block">
-            Balanced Scorecard · v1
-          </div>
-        </header>
+      <div className="relative z-10 flex min-h-screen flex-col items-center justify-center px-6 py-14 text-center">
+        <motion.div
+          initial={reduceMotion ? false : { opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="flex items-center gap-2 text-[#7A1B2B]"
+        >
+          <WineGlass id="mark" level={0.55} size={16} />
+          <span className="text-[11px] uppercase tracking-[0.42em] font-medium">Sogrape</span>
+        </motion.div>
 
-        {/* Hero */}
-        <div className="flex flex-1 items-center justify-center px-6 pb-16">
-          <div className="max-w-5xl w-full text-center">
-            <motion.p
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, ease: "easeOut" }}
-              className="text-xs uppercase tracking-[0.5em] text-sogrape-gold/90 mb-6"
-            >
-              Est. 1942 · Porto, Portugal
-            </motion.p>
+        <motion.h1
+          initial={reduceMotion ? false : { opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, delay: 0.1 }}
+          className="font-serif text-[clamp(2.4rem,6vw,4.4rem)] leading-[1.05] mt-5 text-[#5C1622]"
+        >
+          Balanced Scorecard
+        </motion.h1>
 
-            <motion.h1
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.15, ease: "easeOut" }}
-              className="font-serif text-5xl sm:text-6xl lg:text-7xl leading-[1.05] tracking-tight"
-            >
-              A toast to strategy,
-              <br />
-              <span className="italic text-sogrape-gold">measured with care.</span>
-            </motion.h1>
+        <motion.p
+          initial={reduceMotion ? false : { opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.7, delay: 0.25 }}
+          className="mt-5 max-w-xl text-sm md:text-base leading-relaxed text-[#6B5A55]"
+        >
+          One living picture of strategy — objectives, measures, targets and initiatives
+          across every perspective of the company.
+        </motion.p>
 
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.6, delay: 0.35 }}
-              className="mt-8 text-base sm:text-lg text-white/70 max-w-2xl mx-auto"
-            >
-              The Sogrape Balanced Scorecard — one living picture of how our objectives, measures and
-              initiatives are performing across every perspective, department and quarter.
-            </motion.p>
-
-            {/* Wine glasses */}
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.9, delay: 0.5, ease: "easeOut" }}
-              className="mt-14 flex items-end justify-center gap-16 sm:gap-24"
-            >
-              <button
-                data-testid={ENTRY.leftGlass}
-                onClick={go}
-                aria-label="Enter the portal"
-                className="group focus:outline-none focus-visible:ring-2 focus-visible:ring-sogrape-gold rounded-lg"
-              >
-                <WineGlass id="left" size={190} accentTop={62} />
-                <div className="mt-4 text-xs uppercase tracking-[0.4em] text-sogrape-gold/70 group-hover:text-sogrape-gold transition-colors">
-                  Enter
-                </div>
-              </button>
-              <button
-                data-testid={ENTRY.rightGlass}
-                onClick={go}
-                aria-label="Enter the portal"
-                className="group focus:outline-none focus-visible:ring-2 focus-visible:ring-sogrape-gold rounded-lg"
-              >
-                <WineGlass id="right" size={190} accentTop={58} />
-                <div className="mt-4 text-xs uppercase tracking-[0.4em] text-sogrape-gold/70 group-hover:text-sogrape-gold transition-colors">
-                  Enter
-                </div>
-              </button>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.6, delay: 0.9 }}
-              className="mt-12"
-            >
-              <Button
-                data-testid={ENTRY.enterButton}
-                onClick={go}
-                className="bg-sogrape-gold hover:bg-sogrape-gold/90 text-[#1A1213] font-semibold px-8 py-6 rounded-full text-sm uppercase tracking-[0.25em]"
-              >
-                Continue to the portal
-                <ArrowRight className="h-4 w-4 ml-2" />
-              </Button>
-            </motion.div>
-          </div>
+        <div className="mt-10 flex items-end justify-center gap-6 md:gap-10" data-testid="entry-glasses">
+          {glass("left")}
+          {glass("right")}
         </div>
 
-        <footer className="px-10 py-6 text-[11px] uppercase tracking-[0.3em] text-white/40 flex justify-between">
-          <span>Family owned · Since 1942</span>
-          <span>Bordeaux · Porto · Douro</span>
-        </footer>
+        <div className="mt-12 h-12 flex flex-col items-center justify-start">
+          <AnimatePresence mode="wait">
+            <motion.p
+              key={STEPS[step].caption}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.35 }}
+              className="text-[10px] uppercase tracking-[0.42em] text-[#A08B85]"
+              aria-live="polite"
+            >
+              {STEPS[step].caption}
+            </motion.p>
+          </AnimatePresence>
+
+          <AnimatePresence>
+            {step === FINAL && (
+              <motion.button
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.45, delay: 0.15 }}
+                onClick={(e) => { e.stopPropagation(); go(); }}
+                data-testid={ENTRY.enterButton}
+                className="mt-4 inline-flex items-center gap-2 rounded-full border border-[#7A1B2B]/25 bg-[#7A1B2B] px-7 py-2.5 text-sm text-[#FBF6F3] transition-colors hover:bg-[#5C1622] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#7A1B2B]/40"
+              >
+                Enter the scorecard
+                <ArrowRight className="h-4 w-4" />
+              </motion.button>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
     </div>
   );
