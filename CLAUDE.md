@@ -131,6 +131,7 @@ No framework. Each file runs directly with `node`, from the repo root.
     node frontend/src/lib/__tests__/rag.fixture.mjs     # 24 RAG statuses vs the workbook
     node frontend/src/lib/__tests__/api.supabase.mjs    # 37 data-layer tests
     node frontend/src/lib/__tests__/okr.logic.mjs       # 19 OKR scoring tests
+    node frontend/src/lib/__tests__/periods.logic.mjs   # 26 period-ordering / reported tests
     node scripts/__tests__/migrate.test.mjs             # 15 migration-runner tests
 
 Data-layer and migration tests run against in-memory fakes that emulate the real

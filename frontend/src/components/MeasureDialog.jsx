@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { UNIT_OPTIONS, TIME_PERIOD_OPTIONS } from "../lib/constants";
+import { UNIT_OPTIONS, TIME_PERIOD_OPTIONS, TIME_PERIOD_LABELS } from "../lib/constants";
 import { toast } from "sonner";
 import { api } from "../lib/api";
 import { useScorecard } from "../context/ScorecardContext";
@@ -140,7 +140,7 @@ const MeasureDialog = ({ open, onOpenChange, measure, defaultObjective }) => {
             <Select value={form.time_period} onValueChange={(v) => set("time_period", v)}>
               <SelectTrigger data-testid="measure-time-period"><SelectValue /></SelectTrigger>
               <SelectContent>
-                {TIME_PERIOD_OPTIONS.map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+                {TIME_PERIOD_OPTIONS.map((u) => <SelectItem key={u} value={u}>{TIME_PERIOD_LABELS[u] || u}</SelectItem>)}
               </SelectContent>
             </Select>
           </F>

@@ -80,6 +80,19 @@ function findByName(items, name) {
 
 const num = (v) => Number(v ?? 0) || 0;
 
+/**
+ * Like num(), but a blank cell stays blank.
+ *
+ * Used for target actuals only. An import with an empty actual column means
+ * "no result reported for this period", and coercing that to 0 would score the
+ * period as a total miss instead of leaving it out of the average.
+ */
+const numOrNull = (v) => {
+  if (v === null || v === undefined || String(v).trim() === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+};
+
 export const api = {
   // ------------------------------------------------------------- projects
 
@@ -454,7 +467,7 @@ export const api = {
         measure_id: measureId,
         period,
         target_value: num(row.target_value),
-        actual_value: num(row.actual_value),
+        actual_value: numOrNull(row.actual_value),
       };
       const existing = doc.targets.find((t) => t.measure_id === measureId && t.period === period);
       if (existing && mode !== "add") {
@@ -517,7 +530,7 @@ export const api = {
       if (!measureId && row.measure) measureId = findByName(doc.measures, row.measure)?.id ?? null;
       if (!measureId) continue;
       const period = row.period ?? "";
-      const actual = num(row.actual_value);
+      const actual = numOrNull(row.actual_value);
       const existing = doc.targets.find((t) => t.measure_id === measureId && t.period === period);
       if (existing) {
         unwrap(await supabase.from("targets").update({ actual_value: actual }).eq("id", existing.id));

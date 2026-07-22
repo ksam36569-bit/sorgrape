@@ -9,9 +9,9 @@ import {
 import PerformanceBadge from "../components/PerformanceBadge";
 import FilterBar, { applyObjectiveFilter } from "../components/FilterBar";
 import { useScorecard } from "../context/ScorecardContext";
-import { PERSPECTIVES, PERSPECTIVE_MAP } from "../lib/constants";
+import { PERSPECTIVES, PERSPECTIVE_MAP, isQuarterPeriod, comparePeriods, isReported } from "../lib/constants";
 import {
-  overallScore, perspectiveScore, objectiveScore, measureAchievement, fmtPct, overallRating, measureRating,
+  overallScore, perspectiveScore, objectiveScore, measureAchievement, achievementPct, fmtPct, overallRating, measureRating,
 } from "../lib/calculations";
 import { useTheme } from "../context/ThemeProvider";
 
@@ -52,15 +52,36 @@ const DashboardChartsView = ({ filters, setFilters }) => {
     return { name: d.name, score: Number(s.toFixed(1)) };
   }).filter((d) => d.score > 0 || filteredObjectives.some((o) => o.department_id));
 
-  // Trend: measures avg achievement by period label
-  const periodMap = {};
+  // Trend: average achievement quarter by quarter.
+  //
+  // Quarters only. An annual FY row is one dot on a different timescale, and
+  // drawing a line from "Q3 FY25" to "FY25" would join two things that are not
+  // comparable -- the annual row already contains its own quarters.
+  //
+  // Achievement goes through achievementPct rather than actual/target, so
+  // lower-is-better measures invert properly. Net Debt/EBITDA of 4.2 against a
+  // 3.5 target is 83%, and the old raw division called it 120%.
+  //
+  // Unreported quarters are skipped entirely. A Q4 row created in advance has a
+  // target but no actual, and averaging it in as zero would show a collapse
+  // that has not happened.
+  const measureById = new Map(filteredMeasures.map((m) => [m.id, m]));
+  const quarterMap = {};
   for (const t of filteredTargets) {
-    const pct = ((Number(t.actual_value) || 0) / (Number(t.target_value) || 1)) * 100;
-    (periodMap[t.period] = periodMap[t.period] || []).push(pct);
+    if (!isQuarterPeriod(t.period) || !isReported(t)) continue;
+    const pct = achievementPct(t.actual_value, t.target_value, measureById.get(t.measure_id)?.direction);
+    if (!Number.isFinite(pct)) continue;
+    (quarterMap[t.period] = quarterMap[t.period] || []).push(pct);
   }
-  const trendData = Object.entries(periodMap)
-    .map(([period, arr]) => ({ period, avg: Number((arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(1)) }))
-    .sort((a, b) => a.period.localeCompare(b.period));
+  const trendData = Object.entries(quarterMap)
+    .map(([period, arr]) => ({
+      period,
+      avg: Number((arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(1)),
+      measures: arr.length,
+    }))
+    .sort((a, b) => comparePeriods(a.period, b.period));
+
+  const quarterlyMeasureCount = filteredMeasures.filter((m) => m.time_period === "Quarterly").length;
 
   // Pie: perspective weight allocation
   const weightPie = PERSPECTIVES.map((p, i) => ({
@@ -184,14 +205,16 @@ const DashboardChartsView = ({ filters, setFilters }) => {
 
         {/* Trend */}
         <Card className="p-5">
-          <ChartHead title="Achievement trend" subtitle="Average % across periods" />
+          <ChartHead title="Quarterly achievement trend" subtitle="Average % by quarter" />
           <div className="h-64">
             {trendData.length < 2 ? (
               <EmptyChart
                 msg={
                   trendData.length === 1
-                    ? `Only one period (${trendData[0].period}) has data — a trend needs at least two.`
-                    : "Add targets/actuals to see the trend."
+                    ? `Only ${trendData[0].period} has reported actuals — a trend needs at least two quarters.`
+                    : quarterlyMeasureCount === 0
+                      ? "No quarterly measures in scope. Set a measure's time period to Quarterly, then add Q1–Q4 targets."
+                      : "Quarterly measures are set up, but no quarter has an actual reported yet."
                 }
               />
             ) : (
@@ -199,7 +222,10 @@ const DashboardChartsView = ({ filters, setFilters }) => {
                 <LineChart data={trendData} margin={{ top: 10, right: 10, left: 0, bottom: 10 }}>
                   <XAxis dataKey="period" tick={{ fill: textColor, fontSize: 11 }} />
                   <YAxis tick={{ fill: textColor, fontSize: 11 }} domain={[0, 120]} />
-                  <Tooltip contentStyle={{ background: theme === "dark" ? "#24191A" : "#fff", border: `1px solid ${gridStroke}`, borderRadius: 8 }} />
+                  <Tooltip
+                    contentStyle={{ background: theme === "dark" ? "#24191A" : "#fff", border: `1px solid ${gridStroke}`, borderRadius: 8 }}
+                    formatter={(v, _n, item) => [`${v}% across ${item?.payload?.measures ?? 0} measure${item?.payload?.measures === 1 ? "" : "s"}`, "Achievement"]}
+                  />
                   <Line type="monotone" dataKey="avg" stroke={palette[0]} strokeWidth={2.5} dot={{ r: 3, fill: palette[0] }} />
                 </LineChart>
               </ResponsiveContainer>

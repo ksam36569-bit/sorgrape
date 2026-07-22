@@ -1,3 +1,5 @@
+import { comparePeriods, isReported } from "./constants.js";
+
 // Live formula engine for Sogrape Balanced Scorecard
 // All functions are pure — call whenever project data changes.
 
@@ -34,12 +36,18 @@ export const rating = (pct, thresholds = { red_max: 70, amber_max: 90 }) => {
 
 /**
  * Latest reported actual for a measure — the value RAG thresholds are read against.
- * Periods sort lexically, which is right for FY25 / Q1-Q4 style labels.
+ *
+ * Only rows that actually have an actual count. A quarter someone has created
+ * but not yet filled in must not become the "latest" reading and drag the
+ * measure red; the last quarter with a number in it is still the truth.
+ *
+ * Sorting goes through comparePeriods rather than string comparison, which
+ * would put "Q1 FY26" before "Q4 FY25".
  */
 export const latestActual = (measure, targets) => {
   const ms = targets
-    .filter((t) => t.measure_id === measure.id)
-    .sort((a, b) => String(a.period).localeCompare(String(b.period)));
+    .filter((t) => t.measure_id === measure.id && isReported(t))
+    .sort((a, b) => comparePeriods(a.period, b.period));
   return ms.length ? Number(ms[ms.length - 1].actual_value) || 0 : null;
 };
 
@@ -124,7 +132,9 @@ export const overallRating = (project, perspectiveIds) => {
 
 /** Aggregate a measure across its targets — average of achievement % across periods (with targets) */
 export const measureAchievement = (measure, targets) => {
-  const ms = targets.filter((t) => t.measure_id === measure.id);
+  // Unreported periods are excluded rather than averaged in as zero. Adding
+  // Q1-Q4 rows in January would otherwise crater a measure that is doing fine.
+  const ms = targets.filter((t) => t.measure_id === measure.id && isReported(t));
   if (ms.length === 0) return 0;
   const sum = ms.reduce(
     (acc, t) => acc + achievementPct(t.actual_value, t.target_value, measure.direction),

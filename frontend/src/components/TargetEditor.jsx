@@ -8,7 +8,8 @@ import PerformanceBadge from "./PerformanceBadge";
 import {
   achievementPct, measureAchievement, fmtPct, measureRating,
 } from "../lib/calculations";
-import { annualPeriods, quarterPeriods } from "../lib/constants";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { periodsFor, comparePeriods, TIME_PERIOD_LABELS } from "../lib/constants";
 import { Plus, Trash2 } from "lucide-react";
 
 /**
@@ -21,24 +22,30 @@ const TargetEditor = ({ measure }) => {
   const [newPeriod, setNewPeriod] = useState("");
 
   const targets = useMemo(
-    () => (project?.targets || []).filter((t) => t.measure_id === measure.id).sort((a, b) => a.period.localeCompare(b.period)),
+    () => (project?.targets || []).filter((t) => t.measure_id === measure.id).sort((a, b) => comparePeriods(a.period, b.period)),
     [project, measure.id]
   );
 
-  const suggestedPeriods = useMemo(() => {
-    const fy = project?.fiscal_year || "";
-    return measure.time_period === "Quarterly" ? quarterPeriods(fy) : annualPeriods(fy);
-  }, [measure.time_period, project?.fiscal_year]);
+  // The periods on offer follow the measure's own time_period: Quarterly gives
+  // Q1-Q4 of the fiscal year, Annually gives the single FY row. Picking from a
+  // list rather than typing is what keeps every measure on the same labels -- a
+  // hand-typed "Q1 25" would silently become its own point on the trend chart.
+  const suggestedPeriods = useMemo(
+    () => periodsFor(measure.time_period, project?.fiscal_year || ""),
+    [measure.time_period, project?.fiscal_year]
+  );
 
   const existing = new Set(targets.map((t) => t.period));
-  const quickAdd = suggestedPeriods.filter((p) => !existing.has(p));
+  const available = suggestedPeriods.filter((p) => !existing.has(p));
 
   const addPeriod = async (period) => {
     if (!period.trim()) return;
     setBusy(true);
     try {
       await api.addTarget(project.id, {
-        measure_id: measure.id, period: period.trim(), target_value: 0, actual_value: 0,
+        // actual_value starts null, not 0 -- the period exists but nobody has
+        // reported against it yet, and those are different things.
+        measure_id: measure.id, period: period.trim(), target_value: 0, actual_value: null,
       });
       await refreshProject();
       setNewPeriod("");
@@ -50,8 +57,11 @@ const TargetEditor = ({ measure }) => {
   };
 
   const updateField = async (t, field, value) => {
-    const val = parseFloat(value || "0");
-    if (val < 0) {
+    // Clearing the actual box means "not reported yet", which is a real state
+    // and not the same as reporting zero. A blank target still means zero.
+    const blank = String(value === null || value === undefined ? "" : value).trim() === "";
+    const val = blank ? (field === "actual_value" ? null : 0) : parseFloat(value);
+    if (val !== null && (Number.isNaN(val) || val < 0)) {
       toast.error("Targets cannot be negative");
       return;
     }
@@ -78,7 +88,7 @@ const TargetEditor = ({ measure }) => {
     <div className="border-t border-border/60 mt-3 pt-4">
       <div className="flex items-center justify-between mb-3">
         <div className="text-xs uppercase tracking-[0.25em] text-muted-foreground">
-          Targets · {measure.time_period}
+          Targets · {TIME_PERIOD_LABELS[measure.time_period] || measure.time_period}
         </div>
         <PerformanceBadge pct={avg} rating={measureRating(measure, project.targets, project.performance_thresholds)} thresholds={project.performance_thresholds} testId={`measure-achievement-${measure.id}`} />
       </div>
@@ -109,7 +119,8 @@ const TargetEditor = ({ measure }) => {
               <Input
                 className="col-span-3 h-8"
                 type="number" step="0.01" min="0"
-                defaultValue={t.actual_value}
+                defaultValue={t.actual_value === null || t.actual_value === undefined ? "" : t.actual_value}
+                placeholder="Not reported"
                 onBlur={(e) => updateField(t, "actual_value", e.target.value)}
                 data-testid={`target-actual-${t.id}`}
               />
@@ -126,34 +137,36 @@ const TargetEditor = ({ measure }) => {
         })}
       </div>
 
-      {/* Quick add */}
+      {/* Add a period -- chosen from the measure's own list, never typed. */}
       <div className="mt-3 flex flex-wrap gap-2 items-center">
-        {quickAdd.map((p) => (
-          <Button
-            key={p}
-            size="sm"
-            variant="outline"
-            className="h-7 rounded-full text-xs"
-            onClick={() => addPeriod(p)}
-            disabled={busy}
-            data-testid={`quick-add-period-${p}`}
-          >
-            <Plus className="h-3 w-3 mr-1" /> {p}
-          </Button>
-        ))}
-        <div className="flex items-center gap-1">
-          <Input
-            className="h-7 w-32 text-xs"
-            placeholder="Custom period…"
-            value={newPeriod}
-            onChange={(e) => setNewPeriod(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && addPeriod(newPeriod)}
-          />
-          <Button size="sm" variant="ghost" onClick={() => addPeriod(newPeriod)} disabled={!newPeriod.trim()}>
-            <Plus className="h-3 w-3" />
-          </Button>
-        </div>
+        {available.length > 0 ? (
+          <>
+            <Select value={newPeriod} onValueChange={setNewPeriod}>
+              <SelectTrigger className="h-8 w-44 text-xs" data-testid={`period-select-${measure.id}`}>
+                <SelectValue placeholder={measure.time_period === "Quarterly" ? "Add a quarter…" : "Add a period…"} />
+              </SelectTrigger>
+              <SelectContent>
+                {available.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 rounded-full text-xs"
+              onClick={() => addPeriod(newPeriod)}
+              disabled={busy || !newPeriod}
+              data-testid={`add-period-${measure.id}`}
+            >
+              <Plus className="h-3 w-3 mr-1" /> Add
+            </Button>
+          </>
+        ) : (
+          <span className="text-xs text-muted-foreground">
+            {measure.time_period === "Quarterly" ? "All four quarters are listed." : "The annual period is listed."}
+          </span>
+        )}
       </div>
+
     </div>
   );
 };
