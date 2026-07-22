@@ -10,7 +10,7 @@ departments and time periods — roll up live into one calculated picture of com
 ## User choices (captured from ask_human)
 - Stack: React + JSX (JavaScript, not TypeScript), Tailwind, Shadcn UI, Framer Motion, Recharts, React Flow, SheetJS.
 - Persistence: MongoDB backend (multi-user shared state) instead of pure LocalStorage.
-- AI assistance: Claude Sonnet 4.5 via Emergent Universal LLM key (streaming SSE).
+- AI assistance: OpenAI primary with Anthropic fallback, streaming SSE.
 - Entry screen imagery: auto-selected branded vineyard photography.
 - Delivery: Phase 1 first (approved), then all Phases 2-5 in one iteration.
 
@@ -75,7 +75,8 @@ Iteration 1 testing: backend 16/16, frontend 100% ✅
   Overview/Scorecard/Initiatives), CSV, native Print (@media print CSS), JSON backup export &
   import UI, Update-Actuals quick-mode upload.
 - **AI Analyze** — header button opens dialog that streams Claude Sonnet 4.5 executive briefing via
-  SSE (`emergentintegrations` on backend, EMERGENT_LLM_KEY from env). Regenerate + Copy buttons.
+  SSE. Regenerate + Copy buttons. (Rewritten 2026-07-22 to call the OpenAI and Anthropic
+  SDKs directly — see Deployment below.)
 Iteration 2 testing: backend 10/10 new + 16/16 regression, frontend 100% ✅
 
 ## Backlog
@@ -90,3 +91,20 @@ Iteration 2 testing: backend 10/10 new + 16/16 regression, frontend 100% ✅
 ## Next tasks
 1. Confirm Phase 2-5 with user.
 2. Pick up any P2 items the user prioritises.
+
+## Deployment (2026-07-22)
+
+Migrated off the Emergent platform so the project builds and deploys anywhere.
+
+- `emergentintegrations` (private, not on PyPI) replaced with the official `openai` and
+  `anthropic` SDKs. OpenAI is tried first, Anthropic is the fallback; if the primary fails
+  before emitting any text the other is used, and a mid-stream failure surfaces an error
+  rather than retrying and duplicating output. Model names are env-overridable.
+- `@emergentbase/visual-edits` removed. It is served from assets.emergent.sh, which returns
+  403 to any other CI, so it broke installs everywhere else.
+- Standardised on npm. `resolutions` was a yarn-only field that npm silently ignored, which
+  produced a broken ajv/ajv-keywords tree; it is now `overrides` with a committed
+  package-lock.json. `.npmrc` pins legacy-peer-deps for the react-day-picker/date-fns conflict.
+- Vercel: `vercel.json` builds the CRA app and serves `backend/server.py` through
+  `api/index.py`. Frontend and API are same-origin, so `REACT_APP_BACKEND_URL` is left empty.
+- Requires a hosted MongoDB (Atlas). Serverless functions cannot reach a local database.

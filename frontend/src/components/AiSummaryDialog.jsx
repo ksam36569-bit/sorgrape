@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Sparkles, Copy, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { useScorecard } from "../context/ScorecardContext";
+import { BASE } from "@/lib/api";
 
 const AiSummaryDialog = ({ open, onOpenChange }) => {
   const { project } = useScorecard();
@@ -24,7 +25,7 @@ const AiSummaryDialog = ({ open, onOpenChange }) => {
     setRunning(true);
     controllerRef.current = new AbortController();
     try {
-      const res = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/projects/${project.id}/ai-summary`, {
+      const res = await fetch(`${BASE}/api/projects/${project.id}/ai-summary`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         signal: controllerRef.current.signal,
@@ -40,19 +41,28 @@ const AiSummaryDialog = ({ open, onOpenChange }) => {
         buffer += decoder.decode(value, { stream: true });
         const parts = buffer.split("\n\n");
         buffer = parts.pop() || "";
-        for (const part of parts) {
+        for (const raw of parts) {
+          const part = raw.replace(/^\n+/, "");
           if (!part.startsWith("data:")) continue;
-          const data = part.slice(5).trim();
-          if (data === "[DONE]") { setRunning(false); return; }
-          try {
-            const maybe = JSON.parse(data);
-            if (maybe && typeof maybe === "object" && maybe.error) {
-              setError(maybe.error);
-              setRunning(false);
-              return;
-            }
-          } catch { /* not JSON, it's text */ }
-          acc += data.replace(/\\n/g, "\n");
+          // Strip exactly one delimiter space, not all whitespace — trimming here
+          // swallowed the spaces between streamed tokens and ran words together.
+          let data = part.slice(5);
+          if (data.startsWith(" ")) data = data.slice(1);
+
+          const control = data.trim();
+          if (control === "[DONE]") { setRunning(false); return; }
+          if (control.startsWith("{")) {
+            try {
+              const maybe = JSON.parse(control);
+              if (maybe && typeof maybe === "object" && maybe.error) {
+                setError(maybe.error);
+                setRunning(false);
+                return;
+              }
+            } catch { /* not JSON, treat as text */ }
+          }
+          // Single pass so an escaped backslash isn't re-read as a newline escape.
+          acc += data.replace(/\\(\\|n)/g, (_, c) => (c === "n" ? "\n" : "\\"));
           setText(acc);
         }
       }
