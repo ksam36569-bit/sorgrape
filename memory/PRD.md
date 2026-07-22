@@ -10,16 +10,18 @@ departments and time periods — roll up live into one calculated picture of com
 ## User choices (captured from ask_human)
 - Stack: React + JSX (JavaScript, not TypeScript), Tailwind, Shadcn UI, Framer Motion, Recharts, React Flow, SheetJS.
 - Persistence: MongoDB backend (multi-user shared state) instead of pure LocalStorage.
-- AI assistance: deferred / defaults (kept as placeholder for Phase 5).
+- AI assistance: Claude Sonnet 4.5 via Emergent Universal LLM key (streaming SSE).
 - Entry screen imagery: auto-selected branded vineyard photography.
-- Delivery: Phase 1 first, then confirm before subsequent phases.
+- Delivery: Phase 1 first (approved), then all Phases 2-5 in one iteration.
 
 ## Architecture
 - Backend: FastAPI + Motor (async MongoDB). Single collection `projects`, each document self-contained
-  (departments, objectives, measures, targets, initiatives arrays). All routes prefixed with `/api`.
-- Frontend: React 19 (JSX) + Tailwind + Shadcn UI + Framer Motion. Global state via React Context
-  (`ScorecardProvider`). Routes: `/` (Entry) → `/portal` → `/setup` → `/scorecard`. All persistence via
-  backend REST; the frontend caches only the current-project id in LocalStorage.
+  (departments, objectives, measures, targets, initiatives, strategy_edges arrays). All routes
+  prefixed with `/api`. SSE streaming endpoint for AI summary via `emergentintegrations.llm.chat`.
+- Frontend: React 19 (JSX) + Tailwind + Shadcn UI + Framer Motion + Recharts + React Flow + SheetJS
+  + jsPDF/html2canvas. Global state via React Context (`ScorecardProvider`). Routes: `/` (Entry) →
+  `/portal` → `/setup` → `/scorecard`. Six top-level sections inside scorecard: Scorecard, Dashboard,
+  Strategy Map, Alignment, Initiatives, Reports.
 - Design system: Sogrape Heritage palette — bordeaux #721B29, warm brown/terracotta, cream, muted
   gold. Playfair Display serif for headings + Manrope for body. Light + Dark modes on brand.
 - Formula engine: pure functions in `/app/frontend/src/lib/calculations.js` recompute Achievement %,
@@ -32,69 +34,59 @@ departments and time periods — roll up live into one calculated picture of com
 - **Executive / Board**: monitors overall performance rating, perspective + department roll-ups.
 
 ## Core requirements (static)
-1. Sogrape-branded entry screen with two wine-glass illustrations (identical destination).
-2. Guided 4-step setup wizard (Identity, Strategy, Structure, Review).
-3. Persistent left sidebar with 4 fixed perspectives + dynamic departments + flat searchable KPI index.
-4. Three interchangeable scorecard views: By Perspective / By Department / By Time Period.
-5. Full CRUD hierarchy: Objectives → Measures (=KPIs) → Targets, plus Initiatives (P4).
-6. Weight validation warnings at every level.
-7. Live formula engine + 5-band traffic-light Performance Rating (Red<70, Amber 70-89, Green ≥90).
-8. Strategy Map (React Flow) — Phase 3.
-9. Dashboard with radar/bar/pie/trend/gauge charts + KPI cards — Phase 2.
-10. Filters (dept, perspective, owner, quarter, year, status, priority, risk) — Phase 2.
-11. Reports & export (PDF/Excel/CSV/Print) — Phase 4.
-12. Bulk Excel import with template, auto-mapping, preview, partial import, Update Actuals mode.
-13. Multi-project persistence with JSON import/export — P1 done for MongoDB, JSON import/export in P4.
-14. Dark + Light theme on brand.
-15. AI Assistance placeholder (Analyze & Summarize Dashboard) — Phase 5.
+1. Sogrape-branded entry screen with two wine-glass illustrations (identical destination). ✅
+2. Guided 4-step setup wizard (Identity, Strategy, Structure, Review). ✅
+3. Persistent left sidebar with 4 fixed perspectives + dynamic departments + flat searchable KPI index. ✅
+4. Three interchangeable scorecard views: By Perspective / By Department / By Time Period. ✅
+5. Full CRUD hierarchy: Objectives → Measures (=KPIs) → Targets, plus Initiatives. ✅
+6. Weight validation warnings at every level. ✅
+7. Live formula engine + 5-band traffic-light Performance Rating. ✅
+8. Strategy Map (React Flow) with drag-to-connect, standard-chain suggestion, edge persistence. ✅
+9. Dashboard with Recharts (radar, gauge, pie, bar, trend) + KPI cards. ✅
+10. Combinable filter bar (perspective, department, owner, quarter, year, status, priority, risk). ✅
+11. Reports & export (PDF via jsPDF+html2canvas, Excel/CSV via SheetJS, native Print). ✅
+12. Bulk Excel import with template, auto-mapping, preview, partial import, Update Actuals mode. ✅
+13. Multi-project persistence with JSON import/export UI. ✅
+14. Dark + Light theme on brand. ✅
+15. AI Assistance — "Analyze & Summarize Dashboard" via Claude Sonnet 4.5 streaming SSE. ✅
 
-## What's been implemented (Phase 1 — 2026-02-22)
-- Backend REST API (`/app/backend/server.py`) with full CRUD for projects, departments, objectives,
-  measures, targets, initiatives; bulk-import with cross-sheet name resolution + modes (add / update /
-  replace); update-actuals endpoint; project duplicate + JSON import endpoints.
-- Sogrape-branded entry screen with inline SVG wine glasses + vineyard photography backdrop.
-- 4-step setup wizard capturing all required fields + department add/remove with duplicate rejection.
-- Portal (project switcher) listing all saved scorecards with duplicate/delete affordances.
-- Main scorecard page with persistent sidebar (4 perspectives + departments + KPI index), top bar
-  overall score, three view tabs (By Perspective / By Department / By Time Period), and perspective
-  KPI cards with click-to-filter.
-- Full CRUD via UI for Objectives (dialog) + Measures (dialog) + Targets (inline editor with quick-add
-  period pills and blur-to-save).
-- Live formula engine (Achievement %, Weighted Score, Objective/Perspective/Overall scores, RAG rating)
-  recomputes on every state change; sidebar + header + cards + badges all update in real time.
-- Weight validation warnings (measure weights within objective, objective weights within perspective,
-  perspective weights overall) surfaced as toasts and inline amber text.
-- Bulk Excel import: downloadable template with example rows, drag-in file → auto-guess sheet mapping →
-  manual mapping fallback → row-by-row preview with per-row Zod validation → mode selector (add /
-  update / replace) → commit with stats toast.
-- Update Actuals lightweight template downloadable from the same dialog.
-- Dark + Light mode toggle with brand-tuned palette in both themes; sonner toasts moved to bottom-right.
-- Test coverage: testing_agent_v3 iteration 1 — backend 16/16 pytest cases pass, frontend 100% of
-  tested flows.
+## What's been implemented
 
-## Prioritized backlog
+### Phase 1 (2026-02-22)
+Backend REST API (projects/departments/objectives/measures/targets/initiatives + bulk-import + update-
+actuals). Entry screen, setup wizard, portal, main scorecard with sidebar + 3 views (Perspective/
+Department/Period). Full CRUD via UI + live formula engine + RAG rating. Bulk Excel import. Multi-
+project + Light/Dark theme.
+Iteration 1 testing: backend 16/16, frontend 100% ✅
 
-### P0 (Phase 2 — next)
-- Recharts dashboard: radar (perspective balance), bar (departments), trend (period), gauge (overall),
-  pie (weight allocation) + KPI cards row.
-- Full combinable filter bar (Department, Perspective, Owner, Quarter, Year, Status, Priority, Risk).
+### Phase 2-5 (2026-02-22)
+- **Dashboard** — Recharts radar + radial gauge + pie + bar + line charts, plus 4 KPI stat cards.
+- **FilterBar** — combinable filters (perspective, department, owner, quarter, year, status, priority,
+  risk) with clear-all; live re-aggregation across every section.
+- **Strategy Map** — React Flow with custom objective nodes laid out by perspective row (L&G bottom
+  → Financial top). Drag from handles to connect. Edges persist to MongoDB via strategy_edges API.
+  Click-edge-to-delete. "Suggest standard chain" one-click bulk-connects the classic Kaplan-Norton
+  flow.
+- **Alignment view** — hierarchical roll-up Perspective → Objective → Measure → linked initiatives
+  with contribution % at every level.
+- **Initiatives** — full CRUD dialog with progress slider, linked-measure multi-select. Cards with
+  risk badge, budget, timeline, linked measure chips. Filter + search.
+- **Reports** — PDF (jsPDF+html2canvas from #report-print-area), Excel (SheetJS multi-sheet:
+  Overview/Scorecard/Initiatives), CSV, native Print (@media print CSS), JSON backup export &
+  import UI, Update-Actuals quick-mode upload.
+- **AI Analyze** — header button opens dialog that streams Claude Sonnet 4.5 executive briefing via
+  SSE (`emergentintegrations` on backend, EMERGENT_LLM_KEY from env). Regenerate + Copy buttons.
+Iteration 2 testing: backend 10/10 new + 16/16 regression, frontend 100% ✅
 
-### P1 (Phase 3)
-- Strategy Map via React Flow — custom nodes, animated arrows across perspectives.
-- Strategic Alignment roll-up view (Measure → Objective → Perspective → Overall).
+## Backlog
 
-### P1 (Phase 4)
-- Initiatives module UI (CRUD + Excel import already scaffolded in backend).
-- Reports & Export (PDF via html2pdf/print, Excel/CSV via SheetJS): Executive, Detailed, Perspective,
-  Department, Objective, Initiative, Gap Analysis, Alignment.
-- JSON project import/export UI (backend done).
-- Update-Actuals quick import mode UI (backend done, template already downloadable).
-
-### P2 (Phase 5)
-- AI: Analyze & Summarize Dashboard button (Emergent LLM key + Claude Sonnet 4.5 default).
-- Drag-and-drop reordering of Objectives and Measures.
-- Framer Motion polish + hover micro-animations.
+### P2 (nice-to-have, deferred)
+- Drag-and-drop reordering of Objectives and Measures inside a perspective.
+- Framer Motion micro-animations polish (hover shimmer on cards, staggered chart mount).
+- Perspective-weight settings drawer (currently mutable via API only).
+- Read-only shareable "Board view" link for executive review (see next enhancement).
+- AI in-context suggestions when a Measure goes red (contextual, not just dashboard-wide).
 
 ## Next tasks
-1. Confirm Phase 1 with the user (approve or request changes).
-2. Begin Phase 2: dashboard charts + filters.
+1. Confirm Phase 2-5 with user.
+2. Pick up any P2 items the user prioritises.
