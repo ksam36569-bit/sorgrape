@@ -1,4 +1,5 @@
 import { BrandLogo } from "../components/BrandLogo";
+import { PLAN_STATEMENTS, CHARACTER_TRAITS, STRATEGIC_THEMES, STRATEGIC_RESULTS } from "../lib/strategicPlan";
 import React, { useState, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -148,18 +149,42 @@ const ReportsView = () => {
           </div>
         </header>
 
-        {project.vision && (
-          <section>
-            <div className="text-[10px] uppercase tracking-[0.28em] text-muted-foreground">Vision</div>
-            <p className="text-sm mt-1">{project.vision}</p>
-          </section>
-        )}
-        {project.mission && (
-          <section>
-            <div className="text-[10px] uppercase tracking-[0.28em] text-muted-foreground">Mission</div>
-            <p className="text-sm mt-1">{project.mission}</p>
-          </section>
-        )}
+        {/* Sogrape strategic plan — same framework the Scorecard tab shows. */}
+        <section className="space-y-3">
+          {PLAN_STATEMENTS.map(([label, value]) => (
+            <div key={label} className="grid grid-cols-1 sm:grid-cols-[120px_1fr] gap-1 sm:gap-3">
+              <div className="text-[10px] uppercase tracking-[0.28em] text-muted-foreground">{label}</div>
+              <p className="text-sm leading-relaxed">{value}</p>
+            </div>
+          ))}
+          <div className="grid grid-cols-1 sm:grid-cols-[120px_1fr] gap-1 sm:gap-3">
+            <div className="text-[10px] uppercase tracking-[0.28em] text-muted-foreground">Character</div>
+            <div className="flex flex-wrap gap-1.5">
+              {CHARACTER_TRAITS.map((t) => (
+                <span key={t} className="rounded-full border border-border px-2.5 py-0.5 text-xs text-foreground/80">{t}</span>
+              ))}
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-[120px_1fr] gap-1 sm:gap-3 pt-1">
+            <div className="text-[10px] uppercase tracking-[0.28em] text-muted-foreground">Strategic Themes</div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-x-5 gap-y-2">
+              {STRATEGIC_THEMES.map((t) => (
+                <div key={t.name}>
+                  <div className="font-serif italic text-sm leading-snug">{t.name}</div>
+                  <div className="mt-0.5 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">{t.tag}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-[120px_1fr] gap-1 sm:gap-3">
+            <div className="text-[10px] uppercase tracking-[0.28em] text-muted-foreground">Strategic Results</div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-x-5 gap-y-2">
+              {STRATEGIC_RESULTS.map((r, i) => (
+                <p key={i} className="text-xs leading-relaxed text-muted-foreground">{r}</p>
+              ))}
+            </div>
+          </div>
+        </section>
 
         {/* Perspective breakdown */}
         <section>

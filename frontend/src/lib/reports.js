@@ -1,4 +1,5 @@
 // Export utilities: CSV / Excel / PDF / JSON / Print
+import { PLAN_STATEMENTS, CHARACTER_TRAITS, STRATEGIC_THEMES, STRATEGIC_RESULTS } from "./strategicPlan";
 import { saveAs } from "file-saver";
 import { PERSPECTIVES, PERSPECTIVE_MAP } from "./constants";
 import {
@@ -84,9 +85,13 @@ export const exportExcel = async (project) => {
     ["Industry", project.industry],
     ["Fiscal Year", project.fiscal_year],
     ["Business Unit", project.business_unit],
-    ["Vision", project.vision],
-    ["Mission", project.mission],
-    ["Strategic Themes", project.strategic_themes],
+    ...PLAN_STATEMENTS.map(([label, value]) => [label, value]),
+    ["Character", CHARACTER_TRAITS.join(", ")],
+    ...STRATEGIC_THEMES.map((t, i) => [
+      i === 0 ? "Strategic Themes" : "",
+      `${t.name} (${t.tag})`,
+    ]),
+    ...STRATEGIC_RESULTS.map((r, i) => [i === 0 ? "Strategic Results" : "", r]),
     ["Prepared By", project.prepared_by],
     ["Prepared Date", project.prepared_date],
     [],

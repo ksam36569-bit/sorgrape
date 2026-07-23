@@ -33,6 +33,7 @@ import {
   overallScore, perspectiveScore, perspectiveObjectiveWeightSum, totalPerspectiveWeight, fmtPct, perspectiveRating, overallRating,
 } from "../lib/calculations";
 import { PERSPECTIVES, PERSPECTIVE_MAP } from "../lib/constants";
+import { PLAN_STATEMENTS, CHARACTER_TRAITS, STRATEGIC_THEMES, STRATEGIC_RESULTS } from "../lib/strategicPlan";
 import { DASH, SECTION } from "../constants/testIds";
 import { toast } from "sonner";
 import { api } from "../lib/api";
@@ -268,28 +269,6 @@ const ScorecardPage = () => {
 // It is fixed company content, not the per-project vision/mission fields, so it
 // is held here rather than read from the database. Scorecard tab only; the other
 // sections are working views and do not repeat it.
-const PLAN_STATEMENTS = [
-  ["Purpose", "To bring friendship and happiness to everyone we touch, through our wines."],
-  ["Dream", "To be admired as the world\u2019s most successful family-owned wine company."],
-  ["Spirit", "\u201CSograpiness\u201D \u2014 friendship and happiness lived as an internal culture, not just a marketing line."],
-];
-
-const CHARACTER_TRAITS = ["Innovative", "Courageous", "Agile", "Challenging", "Passionate", "Trusted", "Sensible", "Family"];
-
-// Themes and results are index-aligned: the theme in column i is accountable for
-// the result in column i, which is why they render as two rows of the same grid.
-const STRATEGIC_THEMES = [
-  { name: "Growth & Portfolio Leadership", tag: "Growth Branches" },
-  { name: "Organisational Agility & Efficiency", tag: "Organisational Trunk" },
-  { name: "Sustainable & Responsible Growth", tag: "Sustainability Roots" },
-];
-
-const STRATEGIC_RESULTS = [
-  "Record consolidated sales & profitable growth \u2014 EBITDA, ROCE, net profit, turnover and brand-level share.",
-  "Innovation throughput & digital / process transformation delivered \u2014 transformational initiatives, innovation pipeline, digitalised processes.",
-  "Sustainability commitments & talent investment delivered \u2014 UNGC / IWCA membership, new hires, training and decarbonisation progress.",
-];
-
 const PlanLabel = ({ children }) => (
   <div className="px-5 py-4 bg-muted/40 flex items-start">
     <span className="text-[10px] uppercase tracking-[0.28em] text-muted-foreground">{children}</span>
