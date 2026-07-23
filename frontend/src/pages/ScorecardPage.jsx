@@ -22,12 +22,13 @@ const InitiativesView = lazy(() => import("./InitiativesView"));
 const ReportsView = lazy(() => import("./ReportsView"));
 const OkrsView = lazy(() => import("./OkrsView"));
 const KpisView = lazy(() => import("./KpisView"));
+const PerformanceSnapshotView = lazy(() => import("./PerformanceSnapshotView"));
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Upload, FolderKanban, Sparkles, BarChart3, Network, Layers, Rocket, FileText, ClipboardList, Target, Gauge } from "lucide-react";
+import { Plus, Upload, FolderKanban, Sparkles, BarChart3, Network, Layers, Rocket, FileText, ClipboardList, Target, Gauge, Activity } from "lucide-react";
 import { BrandLogo } from "../components/BrandLogo";
 import {
   overallScore, perspectiveScore, perspectiveObjectiveWeightSum, totalPerspectiveWeight, fmtPct, perspectiveRating, overallRating,
@@ -180,6 +181,7 @@ const ScorecardPage = () => {
                 <TabsTrigger value="alignment" data-testid={SECTION.alignment}><Layers className="h-3.5 w-3.5 mr-1.5" /> Alignment</TabsTrigger>
                 <TabsTrigger value="initiatives" data-testid={SECTION.initiatives}><Rocket className="h-3.5 w-3.5 mr-1.5" /> Initiatives</TabsTrigger>
                 <TabsTrigger value="reports" data-testid={SECTION.reports}><FileText className="h-3.5 w-3.5 mr-1.5" /> Reports</TabsTrigger>
+                <TabsTrigger value="performance-snapshot" data-testid={SECTION.performanceSnapshot}><Activity className="h-3.5 w-3.5 mr-1.5" /> Performance Snapshot</TabsTrigger>
               </TabsList>
             </Tabs>
             <div className="ml-auto flex items-center gap-3 text-xs text-muted-foreground">
@@ -233,6 +235,7 @@ const ScorecardPage = () => {
                 <InitiativesView filters={filters} setFilters={setFilters} />
               )}
               {section === "reports" && <ReportsView />}
+              {section === "performance-snapshot" && <PerformanceSnapshotView />}
             </Suspense>
           </div>
         </main>

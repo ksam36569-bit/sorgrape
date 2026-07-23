@@ -52,6 +52,7 @@ export const SECTION = {
   reports: "section-reports",
   okrs: "section-okrs",
   kpis: "section-kpis",
+  performanceSnapshot: "section-performance-snapshot",
 };
 
 export const INIT = {
