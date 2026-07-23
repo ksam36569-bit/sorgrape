@@ -262,48 +262,99 @@ const ScorecardPage = () => {
   );
 };
 
-// Vision and mission sit at the head of the Scorecard tab only -- they frame the
-// objectives beneath them. Every other section (Dashboard, OKRs, Strategy Map,
-// ...) is a working view and does not repeat the header. Each row renders only
-// when the project actually has that text, so an empty field leaves no gap.
-const VisionMission = ({ project }) => {
-  const rows = [
-    ["Vision", project.vision],
-    ["Mission", project.mission],
-  ].filter(([, v]) => v && String(v).trim());
+// The Sogrape strategic plan, framing the scorecard beneath it. This is the
+// company's own framework -- Purpose, Dream, Spirit and the Character it claims,
+// then the three Strategic Themes and the Result each theme is accountable for.
+// It is fixed company content, not the per-project vision/mission fields, so it
+// is held here rather than read from the database. Scorecard tab only; the other
+// sections are working views and do not repeat it.
+const PLAN_STATEMENTS = [
+  ["Purpose", "To bring friendship and happiness to everyone we touch, through our wines."],
+  ["Dream", "To be admired as the world\u2019s most successful family-owned wine company."],
+  ["Spirit", "\u201CSograpiness\u201D \u2014 friendship and happiness lived as an internal culture, not just a marketing line."],
+];
 
-  if (rows.length === 0) return null;
+const CHARACTER_TRAITS = ["Innovative", "Courageous", "Agile", "Challenging", "Passionate", "Trusted", "Sensible", "Family"];
 
+// Themes and results are index-aligned: the theme in column i is accountable for
+// the result in column i, which is why they render as two rows of the same grid.
+const STRATEGIC_THEMES = [
+  { name: "Growth & Portfolio Leadership", tag: "Growth Branches" },
+  { name: "Organisational Agility & Efficiency", tag: "Organisational Trunk" },
+  { name: "Sustainable & Responsible Growth", tag: "Sustainability Roots" },
+];
+
+const STRATEGIC_RESULTS = [
+  "Record consolidated sales & profitable growth \u2014 EBITDA, ROCE, net profit, turnover and brand-level share.",
+  "Innovation throughput & digital / process transformation delivered \u2014 transformational initiatives, innovation pipeline, digitalised processes.",
+  "Sustainability commitments & talent investment delivered \u2014 UNGC / IWCA membership, new hires, training and decarbonisation progress.",
+];
+
+const PlanLabel = ({ children }) => (
+  <div className="px-5 py-4 bg-muted/40 flex items-start">
+    <span className="text-[10px] uppercase tracking-[0.28em] text-muted-foreground">{children}</span>
+  </div>
+);
+
+function StrategicPlan() {
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35 }}
       className="mb-6"
-      data-testid="scorecard-vision-mission"
+      data-testid="scorecard-strategic-plan"
     >
       <Card className="overflow-hidden border-border/70">
         <div className="divide-y divide-border">
-          {rows.map(([label, value]) => (
+          {PLAN_STATEMENTS.map(([label, value]) => (
             <div key={label} className="grid grid-cols-1 sm:grid-cols-[132px_1fr]">
-              <div className="px-5 py-4 bg-muted/40 flex items-start">
-                <span className="text-[10px] uppercase tracking-[0.28em] text-muted-foreground">{label}</span>
-              </div>
+              <PlanLabel>{label}</PlanLabel>
               <div className="px-5 py-4">
                 <p className="text-sm leading-relaxed text-foreground/90">{value}</p>
               </div>
             </div>
           ))}
+
+          <div className="grid grid-cols-1 sm:grid-cols-[132px_1fr]">
+            <PlanLabel>Character</PlanLabel>
+            <div className="px-5 py-4 flex flex-wrap gap-1.5">
+              {CHARACTER_TRAITS.map((t) => (
+                <span key={t} className="rounded-full border border-border bg-background px-2.5 py-0.5 text-xs text-foreground/80">{t}</span>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-[132px_1fr]">
+            <PlanLabel>Strategic Themes</PlanLabel>
+            <div className="px-5 py-4 grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-3">
+              {STRATEGIC_THEMES.map((t) => (
+                <div key={t.name} className="text-center">
+                  <div className="font-serif italic text-sm leading-snug text-foreground">{t.name}</div>
+                  <div className="mt-1 text-[10px] uppercase tracking-[0.22em] text-sogrape-gold/80">{t.tag}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-[132px_1fr]">
+            <PlanLabel>Strategic Results</PlanLabel>
+            <div className="px-5 py-4 grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-3">
+              {STRATEGIC_RESULTS.map((r, i) => (
+                <p key={i} className="text-xs leading-relaxed text-muted-foreground">{r}</p>
+              ))}
+            </div>
+          </div>
         </div>
       </Card>
     </motion.div>
   );
-};
+}
 
 const ScorecardSection = ({ project, filters, setFilters, objectivesFiltered, view, overall, totalPWeight, setObjDialog, setMeasureDialog, setImportOpen }) => {
   return (
     <>
-      <VisionMission project={project} />
+      <StrategicPlan />
 
       <FilterBar filters={filters} setFilters={setFilters} />
 
