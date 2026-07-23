@@ -8,7 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { X, Plus, ChevronRight, ChevronLeft, Grape } from "lucide-react";
+import { X, Plus, ChevronRight, ChevronLeft } from "lucide-react";
+import { BrandLogo } from "../components/BrandLogo";
 import { SETUP } from "../constants/testIds";
 import { useScorecard } from "../context/ScorecardContext";
 import { projectSchema } from "../lib/validation";
@@ -84,13 +85,8 @@ const SetupWizard = () => {
       <div className="border-b border-border bg-card">
         <div className="max-w-5xl mx-auto px-8 py-8 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center">
-              <Grape className="h-4 w-4 text-primary" />
-            </div>
-            <div>
-              <div className="text-xs uppercase tracking-[0.35em] text-muted-foreground">Sogrape</div>
-              <div className="font-serif text-lg">Scorecard Setup</div>
-            </div>
+            <BrandLogo height={40} chip />
+            <div className="font-serif text-lg">Scorecard Setup</div>
           </div>
           <div className="flex items-center gap-1.5">
             {STEPS.map((s, i) => (

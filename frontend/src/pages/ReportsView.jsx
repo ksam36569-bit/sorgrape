@@ -1,3 +1,4 @@
+import { BrandLogo } from "../components/BrandLogo";
 import React, { useState, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -130,11 +131,14 @@ const ReportsView = () => {
       {/* Printable report */}
       <div id="report-print-area" ref={reportRef} className="bg-card border border-border rounded-lg p-8 space-y-6 print-report">
         <header className="flex items-center justify-between border-b border-border pb-4">
-          <div>
+          <div className="flex items-center gap-4">
+            <BrandLogo height={52} />
+            <div>
             <div className="text-[10px] uppercase tracking-[0.28em] text-muted-foreground">Sogrape · Balanced Scorecard</div>
             <h1 className="font-serif text-3xl">{project.company_name}</h1>
             <div className="text-sm text-muted-foreground">
               {project.industry || "—"} · {project.fiscal_year || "—"} · {project.business_unit || "—"} · Prepared by {project.prepared_by || "—"} · {project.prepared_date || ""}
+            </div>
             </div>
           </div>
           <div className="text-right">

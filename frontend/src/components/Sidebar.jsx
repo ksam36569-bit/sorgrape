@@ -6,7 +6,8 @@ import {
   overallScore, perspectiveScore, perspectiveRating, measureRating, rating, fmtPct,
 } from "../lib/calculations";
 import { cn } from "@/lib/utils";
-import { ChevronDown, ChevronRight, Search, Grape, Users, ListTree, Trash2, Pencil, Plus } from "lucide-react";
+import { ChevronDown, ChevronRight, Search, Users, ListTree, Trash2, Pencil, Plus } from "lucide-react";
+import { BrandLogo } from "./BrandLogo";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { DASH } from "../constants/testIds";
@@ -47,10 +48,8 @@ const Sidebar = ({ view, filters, setFilters, onAddDepartment, onEditDepartment,
       className="hidden lg:flex w-72 shrink-0 flex-col border-r border-border bg-[hsl(var(--sidebar-bg))] text-[hsl(var(--sidebar-fg))]"
     >
       <div className="px-5 pt-6 pb-4 border-b border-white/10">
-        <div className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded-full border border-sogrape-gold/50 flex items-center justify-center">
-            <Grape className="h-4 w-4 text-sogrape-gold" />
-          </div>
+        <div className="flex items-center gap-2.5">
+          <BrandLogo height={34} chip />
           <div>
             <div className="font-serif text-base leading-tight">{project.company_name}</div>
             <div className="text-[10px] uppercase tracking-[0.28em] text-sogrape-gold/70">

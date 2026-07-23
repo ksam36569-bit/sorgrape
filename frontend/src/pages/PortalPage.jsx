@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { api } from "../lib/api";
-import { Copy, Trash2, ChevronRight, Plus, Grape } from "lucide-react";
+import { Copy, Trash2, ChevronRight, Plus } from "lucide-react";
+import { BrandLogo } from "../components/BrandLogo";
 import ThemeToggle from "../components/ThemeToggle";
 
 const PortalPage = () => {
@@ -38,13 +39,8 @@ const PortalPage = () => {
       <header className="border-b border-border bg-card/60 backdrop-blur">
         <div className="max-w-6xl mx-auto px-8 py-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center">
-              <Grape className="h-4 w-4 text-primary" />
-            </div>
-            <div>
-              <div className="text-[10px] uppercase tracking-[0.35em] text-muted-foreground">Sogrape</div>
-              <div className="font-serif text-lg">Balanced Scorecard Portal</div>
-            </div>
+            <BrandLogo height={40} chip />
+            <div className="font-serif text-lg">Balanced Scorecard Portal</div>
           </div>
           <div className="flex items-center gap-2">
             <Button onClick={() => navigate("/setup")}><Plus className="h-4 w-4 mr-1.5" /> New scorecard</Button>

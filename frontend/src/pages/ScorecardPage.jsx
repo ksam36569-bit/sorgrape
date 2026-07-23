@@ -27,7 +27,8 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Upload, Grape, FolderKanban, Sparkles, BarChart3, Network, Layers, Rocket, FileText, ClipboardList, Target, Gauge } from "lucide-react";
+import { Plus, Upload, FolderKanban, Sparkles, BarChart3, Network, Layers, Rocket, FileText, ClipboardList, Target, Gauge } from "lucide-react";
+import { BrandLogo } from "../components/BrandLogo";
 import {
   overallScore, perspectiveScore, perspectiveObjectiveWeightSum, totalPerspectiveWeight, fmtPct, perspectiveRating, overallRating,
 } from "../lib/calculations";
@@ -124,13 +125,8 @@ const ScorecardPage = () => {
         <header className="border-b border-border bg-card/60 backdrop-blur" data-print-hide="true">
           <div className="px-6 lg:px-10 py-4 flex items-center gap-4 flex-wrap">
             <div className="lg:hidden flex items-center gap-2">
-              <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                <Grape className="h-4 w-4 text-primary" />
-              </div>
-              <div>
-                <div className="text-[10px] uppercase tracking-[0.28em] text-muted-foreground">Sogrape</div>
-                <div className="font-serif text-sm">{project.company_name}</div>
-              </div>
+              <BrandLogo height={30} chip />
+              <div className="font-serif text-sm">{project.company_name}</div>
             </div>
             <div className="hidden lg:block">
               <div className="text-[10px] uppercase tracking-[0.28em] text-muted-foreground">

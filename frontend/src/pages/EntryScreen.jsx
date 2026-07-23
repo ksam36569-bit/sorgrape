@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import WineGlass from "../components/WineGlass";
+import { BrandLogo } from "../components/BrandLogo";
 import { ENTRY } from "../constants/testIds";
 import { ArrowRight } from "lucide-react";
 
@@ -104,8 +105,7 @@ const EntryScreen = () => {
           transition={{ duration: 0.6 }}
           className="flex items-center gap-2 text-[#7A1B2B]"
         >
-          <WineGlass id="mark" level={0.55} size={16} />
-          <span className="text-[11px] uppercase tracking-[0.42em] font-medium">Sogrape</span>
+          <BrandLogo height={40} />
         </motion.div>
 
         <motion.h1
